@@ -9,4 +9,6 @@ class GraphDeconv:
         self.cell_num = cell_num
     
     def fit():
-        
+        """
+            
+        """

@@ -9,6 +9,12 @@ class HEPrediction:
         self.cell_num = cell_num
     
     def get_cell_type():
+        """
+            
+        """
         
         
     def get_expression():
+        """
+            
+        """
