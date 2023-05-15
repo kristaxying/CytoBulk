@@ -45,7 +45,7 @@ class CytoBulk:
             ref_marker: if marker_label = self_designed, THIS 
         return:
             cell_fraction: dataframe, columns are the cell type, rows are sample_name.
-            mapped_sc: dataframe, columns is are sample name, rows are GeneSymbol.
+            mapped_sc: dataframe, columns are the sample name, rows are GeneSymbol.
         """
         if marker_label == 'self_designed':
             self.ref_marker = read_marker_genes(ref_marker)
