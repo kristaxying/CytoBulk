@@ -44,8 +44,8 @@ class CytoBulk:
             marker_label: the marker gene could be 'self_designed' or 'auto_find'.
             ref_marker: if marker_label = self_designed, THIS 
         return:
-            cell_fraction: dataframe, columns is the cell type, rows are sample_name.
-            mapped_sc: dataframe, columns is the sample name, rows are GeneSymbol.
+            cell_fraction: dataframe, columns are the cell type, rows are sample_name.
+            mapped_sc: dataframe, columns is are sample name, rows are GeneSymbol.
         """
         if marker_label == 'self_designed':
             self.ref_marker = read_marker_genes(ref_marker)
@@ -57,13 +57,14 @@ class CytoBulk:
         if mode == "training":
             if training_sc is None:
                 raise ValueError("For deconvolution, if using training mode, please provide scRNA-seq data and corresponding cell meta.")
-            else:
-                print("Please notice that the training mode is chosen")
-                sti_bulk,sti_fraction = bulk_simulation(training_sc,training_meta,self.ref_marker,sc_nor,out_dir)
-                '''
-                please add training part.
-                '''
-                
+            
+            print("Please notice that the training mode is chosen")
+            sti_bulk, sti_fraction = bulk_simulation(training_sc,training_meta,self.ref_marker,sc_nor,out_dir)
+            '''
+            please add training part.
+            '''
+
+
         '''
         elif mode == "prediction":
             training_sc,trainging_meta = read_training_data(training_sc,trainging_meta)
