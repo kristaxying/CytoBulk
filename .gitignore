@@ -1,0 +1,25 @@
+# R lang
+**/.Rhistory
+
+# OSX
+**/.DS_Store
+
+# python byte-compiled files
+__pycache__/
+
+# vscode
+.vscode/
+
+# sphinx docs
+docs/_build/
+
+# project specified (not sure)
+output/
+out/
+
+# use lfs if needed
+cnv_input/
+data/
+
+# ignore .ipynb which is not directly under root
+*/*.ipynb
