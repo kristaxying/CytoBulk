@@ -19,4 +19,4 @@ For testing the CytoBulk class, you may refer the test.py file.
 ### Maintainer
 WANG Xueying xywang85-c@my.cityu.edu.hk
 
-WANG Yian 18019349217@163.com
+WANG Yian yianwang5-c@my.cityu.edu.hk
