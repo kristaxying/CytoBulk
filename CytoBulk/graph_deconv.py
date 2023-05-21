@@ -2,14 +2,17 @@ import torch
 import pandas as pd
 import numpy as np
 import torch.nn as nn
-
 from tqdm import tqdm
+
+from utils import check_paths
 
 
 class Const:
     """
     Some constants used in the class.
     """
+    MODE_TRAINING = "training"
+    MODE_PREDICTION = "prediction"
     SAMPLE_COL = "Unnamed: 0"
     GENE_SYMBOL_COL = "GeneSymbol"
     BATCH_SIZE = 100
@@ -52,7 +55,7 @@ class ChebConv(nn.Module):
     def forward(self, inputs, graph):
         L = ChebConv.get_laplacian(graph, self.normalize)
         
-        L = L.to('cpu')
+        L = L.to("cpu")
         lam, u = np.linalg.eig(L)
         lam = torch.FloatTensor(lam)
         lam = lam.to(self.device)
@@ -129,42 +132,27 @@ class ChebNet(nn.Module):
         return output_2
 
 
-# TODO
-def configure_device(use_cpu):
-    if use_cpu: return 'cpu'
-    # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+def configure_device(use_gpu):
+    if use_gpu:
+        if torch.cuda.is_available(): return "cuda"
+        if torch.backends.mps.is_available(): return "mps"
     return "cpu"
 
 class GraphDeconv:
     def __init__(
             self,
             cell_num=100,
-            mode="prediction",
-            expression_path=None,
-            fraction_path=None,
-            use_cpu=True
+            mode=Const.MODE_PREDICTION,
+            use_gpu=False
     ):
         """
             cell_num: int, the number of cell for each bulk sample.
             mode: string, prediction or training.
-            expression_path: string, needed if `mode` is `training`, the path of the bulk expression file.
-            fraction_path: string, needed if `mode` is `training`, the path of the bulk fraction file.
-            use_cpu: bool, if `True`, the model will only use CPU otherwise, it will use CUDA or MPS.
+            use_gpu: bool, if `True`, the model will use CUDA or MPS, otherwise, it will only use CPU.
         """
         self.cell_num = cell_num
         self.mode = mode
-
-        if mode == "training":
-            if (expression_path is None) or (fraction_path is None):
-                raise ValueError("Please provide the expression file and the matching fraction file under training mode.")
-        print("Reading expression data...")
-        self.__expression = pd.read_csv(expression_path)
-        print("Reading fraction data...")
-        self.__fraction = pd.read_csv(fraction_path)
-        if self.__expression.shape[0] != self.__fraction.shape[0]:
-            raise ValueError(f"Please check the input, the shape of the expression file {self.expression.shape} does not match the one of fraction {self.fraction.shape}.")
-        
-        self.device = 'cpu' # TODO
+        self.device = configure_device(use_gpu)
     
     @staticmethod
     def __get_mat_YW(y_path, sel_gene):
@@ -175,10 +163,10 @@ class GraphDeconv:
         mat_W = mat_Y @ mat_Y.t()
         return mat_Y , mat_W
 
-    def __get_G(self, cell_name, sel_gene):
+    def __get_G(self, cell_name, sel_gene, sc_folder):
         sec_num = 1e-20
         mat_Y, mat_W = self.__get_mat_YW(
-            f'../output/cell_feature/{cell_name}_scrna.txt', # NOTE: mind the path
+            f"{sc_folder}{cell_name}_scrna.txt", # NOTE: mind the path
             sel_gene
         )
         num = len(mat_W)
@@ -193,26 +181,55 @@ class GraphDeconv:
     def train(
         self,
         out_dir,
+        expression_path=None,
+        fraction_path=None,
+        marker_path=None,
+        sc_folder=None,
         batch_size = Const.BATCH_SIZE
     ):
-        marker = pd.read_csv('../output/marker_gene.csv') # NOTE: check if needed
+        """
+        out_dir: string, the directory for saving trained models.
+        expression_path: string, needed if `mode` is `training`, the path of the bulk expression file.
+        fraction_path: string, needed if `mode` is `training`, the path of the bulk fraction file.
+        marker_path: string, needed if `mode` is `training`, the path of the gene marker file.
+        sc_folder: string, needed if `mode` is `training`, the path of the folder containing single cell reference.
+        """
+
+        # checking
+        if self.mode != Const.MODE_TRAINING:
+            # value error?
+            raise ValueError("This function can only be used under training mode.")
+        
+        check_paths(output_folder=out_dir)
+
+        if not (expression_path and fraction_path and marker_path and sc_folder):
+            raise ValueError("Please provide necessary files under the  training mode.")
+        print("Reading expression data...")
+        input_expression = pd.read_csv(expression_path)
+        print("Reading fraction data...")
+        input_fraction = pd.read_csv(fraction_path)
+        if input_expression.shape[0] != input_fraction.shape[0]:
+            raise ValueError(f"Please check the input, the shape of the expression file {input_expression.shape} does not match the one of fraction {input_fraction.shape}.")
+        
+
+        marker = pd.read_csv(marker_path) # NOTE: check if needed
         tot_cell_list = list(marker.columns)[1:]
 
         for cell in tot_cell_list:
-            print(f'Start training {cell}...')
+            print(f"Start training {cell}...")
 
             sel_gene = marker[cell].dropna()
-            input_bulk = self.__expression.loc[:, self.__expression.columns.isin(sel_gene)]
+            input_bulk = input_expression.loc[:, input_expression.columns.isin(sel_gene)]
             # print(input_bulk.shape)
             input_bulk = input_bulk.sample(n=batch_size*(input_bulk.shape[1] // batch_size), axis=1, random_state=Const.SEED)
             train_data = input_bulk.values
 
-            train_label = self.__fraction[cell].values
+            train_label = input_fraction[cell].values
 
             train_dataset = torch.utils.data.TensorDataset(torch.FloatTensor(train_data), torch.FloatTensor(train_label))
             train_loader = torch.utils.data.DataLoader(dataset = train_dataset, batch_size = Const.BATCH_SIZE, shuffle = True)
 
-            mat_G, num = self.__get_G(cell, sel_gene)
+            mat_G, num = self.__get_G(cell, sel_gene, sc_folder)
             mat_G = mat_G.to(self.device)
 
             model_graph = ChebNet(num,num,num,2, device=self.device).to(self.device)
@@ -247,17 +264,20 @@ class GraphDeconv:
 
                 if should_break: break
 
-            print(f'Saving {cell} model...', end=' ')
-            torch.save(model_graph.state_dict(),f'{out_dir}/graph_{cell}.pt')
-            torch.save(model_linear.state_dict(),f'{out_dir}/linear_{cell}.pt')
-            print(f'Done.')
+            print(f"Saving {cell} model...", end=" ")
+            torch.save(model_graph.state_dict(),f"{out_dir}/graph_{cell}.pt")
+            torch.save(model_linear.state_dict(),f"{out_dir}/linear_{cell}.pt")
+            print("Done.")
 
 
 # for quick testing
 if __name__ == "__main__":
     deconv = GraphDeconv(
-        mode="training",
-        expression_path="../output/training_data/expression.csv",
-        fraction_path="../output/training_data/fraction.csv"
+        mode="training"
     )
-    deconv.train(out_dir="../output/model")
+    deconv.train(out_dir="../output/model",
+                 expression_path="../output/training_data/expression.csv",
+                 fraction_path="../output/training_data/fraction.csv",
+                 marker_path="../output/marker_gene.csv",
+                 sc_folder="../output/cell_feature/"
+                )
