@@ -17,7 +17,7 @@ class Const:
     GENE_SYMBOL_COL = "GeneSymbol"
     BATCH_SIZE = 100
     LEARNING_RATE = 0.0005
-    EPOCH_NUM = 1
+    EPOCH_NUM = 40
     SEED = 3407
 
 
@@ -55,7 +55,7 @@ class ChebConv(nn.Module):
     def forward(self, inputs, graph):
         L = ChebConv.get_laplacian(graph, self.normalize)
         
-        L = L.to('cpu')
+        L = L.to("cpu")
         lam, u = np.linalg.eig(L)
         lam = torch.FloatTensor(lam)
         lam = lam.to(self.device)
@@ -134,8 +134,8 @@ class ChebNet(nn.Module):
 
 def configure_device(use_gpu):
     if use_gpu:
-        if torch.cuda.is_available(): return 'cuda'
-        if torch.backends.mps.is_available(): return 'mps'
+        if torch.cuda.is_available(): return "cuda"
+        if torch.backends.mps.is_available(): return "mps"
     return "cpu"
 
 class GraphDeconv:
@@ -166,7 +166,7 @@ class GraphDeconv:
     def __get_G(self, cell_name, sel_gene, sc_folder):
         sec_num = 1e-20
         mat_Y, mat_W = self.__get_mat_YW(
-            f'{sc_folder}{cell_name}_scrna.txt', # NOTE: mind the path
+            f"{sc_folder}{cell_name}_scrna.txt", # NOTE: mind the path
             sel_gene
         )
         num = len(mat_W)
@@ -216,7 +216,7 @@ class GraphDeconv:
         tot_cell_list = list(marker.columns)[1:]
 
         for cell in tot_cell_list:
-            print(f'Start training {cell}...')
+            print(f"Start training {cell}...")
 
             sel_gene = marker[cell].dropna()
             input_bulk = input_expression.loc[:, input_expression.columns.isin(sel_gene)]
@@ -264,10 +264,10 @@ class GraphDeconv:
 
                 if should_break: break
 
-            print(f'Saving {cell} model...', end=' ')
-            torch.save(model_graph.state_dict(),f'{out_dir}/graph_{cell}.pt')
-            torch.save(model_linear.state_dict(),f'{out_dir}/linear_{cell}.pt')
-            print('Done.')
+            print(f"Saving {cell} model...", end=" ")
+            torch.save(model_graph.state_dict(),f"{out_dir}/graph_{cell}.pt")
+            torch.save(model_linear.state_dict(),f"{out_dir}/linear_{cell}.pt")
+            print("Done.")
 
 
 # for quick testing
@@ -278,6 +278,6 @@ if __name__ == "__main__":
     deconv.train(out_dir="../output/model",
                  expression_path="../output/training_data/expression.csv",
                  fraction_path="../output/training_data/fraction.csv",
-                 marker_path='../output/marker_gene.csv',
-                 sc_folder='../output/cell_feature/'
+                 marker_path="../output/marker_gene.csv",
+                 sc_folder="../output/cell_feature/"
                 )
