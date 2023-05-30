@@ -31,8 +31,8 @@ def find_unaccountable_cell_types(marker_genes_by_cell_type, input_genes):
 
     """check the whether the input gene >= half of marker gene for each cell type or not.
     args:
-        marker_genes_by_cell_type: the marker gene list.
-        input_genes: input gene list need to be checked.
+        marker_genes_by_cell_type:  the marker gene list.
+        input_genes:                input gene list need to be checked.
     """
 
     for cell_type, marker_genes in marker_genes_by_cell_type.items():
@@ -53,32 +53,26 @@ def check_duplicates(input_genes):
         seen_genes.add(gene)
     return None
 
-
-
-
-def bulk_simulation(sc_path,meta_path,marker,sc_nor,out_dir,n_sample=5000,n=200):
-    start_t = time.perf_counter()
-    sc_data, meta, marker = read_training_data(sc_path, meta_path, marker, sc_nor, out_dir)
-    print(f"Time to read and check training data: {round(time.perf_counter() - start_t, 2)} seconds")
-    print('start to stimulate bulk expression data ...')
-    start_t = time.perf_counter()
-    n_celltype = len(meta['Celltype_minor'].value_counts())
-    print(n_celltype)
+def get_stimulation(n_celltype,n_sample,meta,sc_data,out_dir,n,type='training'):
+    """get stimulated expression data and cell type prop.
+    args:
+        type: string, training or testing.
+    """
+    print(f'The {type} data generation...')
     print("start to generate cell fraction...")
     cell_prop = np.random.dirichlet(np.ones(n_celltype), n_sample)
-    print(cell_prop)
     # get cell meta dictionary
     meta_index = meta[['Celltype_minor']]
     meta_index = meta_index.groupby(meta['Celltype_minor']).groups
     for key, value in meta_index.items():
         meta_index[key] = np.array(value)
     cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
-    print(cell_prop.shape)
+    print(f'The number of samples is {cell_prop.shape[0]}, the number of cell types is {cell_prop.shape[1]}')
     for i in range(int(cell_prop.shape[1] * 0.1)):
         indices = np.random.choice(np.arange(cell_prop.shape[0]), replace=False, size=int(cell_prop.shape[0] * 0.1))
         cell_prop[i, indices] = 0
     # get cell number based on cell prop
-    print('start sampling...')
+    print('Start sampling...')
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))
     allcellname = meta_index.keys()
     cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
@@ -90,12 +84,45 @@ def bulk_simulation(sc_path,meta_path,marker,sc_nor,out_dir,n_sample=5000,n=200)
     sample = sample/n
     print("Sampling down")
     print("Saving simulated data...")
-    out_dir = check_paths(out_dir+'/training_data')
+    #out_dir = check_paths(out_dir+'/training_data')
     sample = pd.DataFrame(sample,index=['Sample'+str(i) for i in range(n_sample)],columns=sc_data.index.values)
     sample.to_csv(out_dir+"/expression.csv")
     cell_prop = pd.DataFrame(cell_prop,index=['Sample'+str(i) for i in range(n_sample)],columns=allcellname)
     cell_prop.to_csv(out_dir+"/fraction.csv")
     return sample,cell_prop
+
+
+
+def bulk_simulation(sc_path,meta_path,marker,sc_nor,out_dir,n_sample=5000,n=200,test=True):
+    """get stimulated training data and testing data.
+    args:
+        test: boolean, true for generating testing data.
+    """
+    # read data
+    start_t = time.perf_counter()
+    sc_data, meta, marker = read_training_data(sc_path, meta_path, marker, sc_nor, out_dir)
+    print(f"Time to read and check training data: {round(time.perf_counter() - start_t, 2)} seconds")
+
+    # training bulk rna
+    train_out_dir = check_paths(out_dir+'/training_data')
+    print('====================================================================')
+    print('====================================================================')
+    print('Start to stimulate the training bulk expression data ...')
+    start_t = time.perf_counter()
+    n_celltype = len(meta['Celltype_minor'].value_counts())
+    training_data,training_prop = get_stimulation(n_celltype,n_sample,meta,sc_data,train_out_dir,n,type='training')
+    print(f'Time to generate training data: {round(time.perf_counter() - start_t, 2)} seconds')
+
+    # testing bulk rna
+    if test:
+        print('-----------------------------------------------------------------')
+        print('start to stimulate the testing bulk expression data ...')
+        testing_out_dir = check_paths(out_dir+'/testing_data')
+        start_t = time.perf_counter()
+        testing_data,testing_prop = get_stimulation(n_celltype,int(n_sample*0.02),meta,sc_data,testing_out_dir,n,type='testing')
+        print(f'Time to generate the training data: {round(time.perf_counter() - start_t, 2)} seconds')
+
+    return training_data,training_prop,testing_data,testing_prop,marker
     
 
 

@@ -4,7 +4,7 @@ from graph_deconv import *
 from image_prediction import *
 from utils import *
 from read_data import *
-import os
+import sys
 
 
 
@@ -15,7 +15,7 @@ class CytoBulk:
             Init the CytoBulk object, the default cell number will be mapped for each sample is 100.
         args:
             cell_num: int, the number of cell for each bulk sample.
-            nor_strategy: the strategy to normalize bulk data. default is "log2(tpm)", the other choices include "none" and "log2".
+            nor_strategy: the strategy to normalize bulk data. default is 'log2(tpm)', the other choices include 'none' and 'log2'.
         """
         self.cell_num = cell_num
         self.out_path = out_path
@@ -24,45 +24,94 @@ class CytoBulk:
     def bulk_deconv(self,
                     gene_len_path='../config/gene_length.txt',
                     mode='prediction',
-                    training_sc=None,
-                    training_meta=None,
+                    training_sc_path=None,
+                    training_meta_path=None,
                     sc_nor = True,
                     nor_strategy="log2(tpm)",
                     marker_label = 'self_designed',
-                    ref_marker=os.path.join(os.path.split(os.path.realpath(__file__))[0],'config/marker_gene.txt')):
+                    ref_marker_path=os.path.join(os.path.split(os.path.realpath(__file__))[0],'config/marker_gene.txt'),
+                    test_cor=True):
         #bulk_deconv(self, bulk_exp_path, ref_sc_path, gene_len_path='./config/gene_length.txt',mode='prediction',training_sc=None,training_meta=None):
         """
             Input is the expression for each data sample, then get the cell type fraction and mapped bulk expression using ref_sc.
         args:
-            bulk_exp_path: the path of bulk rna data.
-            ref_sc_path: the path of single cell rederence datasets for mapping.
-            gene_len_path: the gene length to make log2tmp normalization.
-            mode: the mode to use deconvolution, can select from "prediction" and "training".
-            training_sc: the single cell to train the deconv model as reference.
-            training_meta: the meta data to classificate cells in training_sc.
-            nor_strategy: strategies to normalize bulk data.
-            marker_label: the marker gene could be 'self_designed' or 'auto_find'.
-            ref_marker: if marker_label = self_designed, THIS 
+            bulk_exp_path:          the path of bulk rna data.
+            ref_sc_path:            the path of single cell rederence datasets for mapping.
+            gene_len_path:          the gene length to make log2tmp normalization.
+            mode:                   the mode to use deconvolution, can select from 'prediction' and 'training'.
+            training_sc_path:       the path of single cell to train the deconv model as reference.
+            training_meta_path:     the path of meta data to classificate cells in training_sc.
+            sc_nor:                 boolean, true for normalizing scRNA-Seq using scannpy.
+            nor_strategy:           strategies to normalize bulk data.
+            marker_label:           the marker gene could be 'self_designed' or 'auto_find'.
+            ref_marker_path:        the path of cell type marker gene file. if marker_label = self_designed, the ref_marker_path is needed.
+            test_cor:               boolean, ture for testing model, false for not.
         return:
-            cell_fraction: dataframe, columns are the cell type, rows are sample_name.
-            mapped_sc: dataframe, columns are the sample name, rows are GeneSymbol.
+            cell_fraction:          dataframe, columns are the cell type, rows are sample_name.
+            mapped_sc:              dataframe, columns are the sample name, rows are GeneSymbol.
         """
+        # read make gene
         if marker_label == 'self_designed':
-            self.ref_marker = read_marker_genes(ref_marker)
+            self.ref_marker = read_marker_genes(ref_marker_path)
         else:
             self.ref_marker = None
+
         # check output dir
         out_dir = check_paths(self.out_path)
+
         # if mode = trainging, stimulation and train.
-        if mode == "training":
-            if training_sc is None:
-                raise ValueError("For deconvolution, if using training mode, please provide scRNA-seq data and corresponding cell meta.")
+        if mode == 'training':
+            if training_sc_path is None:
+                raise ValueError('For deconvolution, if using training mode, please provide scRNA-seq data and corresponding cell meta.')
             
-            print("Please notice that the training mode is chosen")
-            sti_bulk, sti_fraction = bulk_simulation(training_sc,training_meta,self.ref_marker,sc_nor,out_dir)
-            '''
-            please add training part.
-            '''
+            print('Please notice that the training mode is chosen')
+            #get training data
+            training_data, training_prop, testing_data, testing_prop, self.ref_marker = bulk_simulation(sc_path = training_sc_path,
+                                                                                                        meta_path = training_meta_path,
+                                                                                                        marker = self.ref_marker,
+                                                                                                        sc_nor = sc_nor,
+                                                                                                        out_dir = out_dir)
+            
+            deconv = GraphDeconv(mode='training')
+            print('====================================================================')
+            print('====================================================================')
+            print('Start to train models')
+            start_t = time.perf_counter()
+            # train model
+            deconv.train(out_dir=out_dir,
+                        expression=training_data,
+                        input_fraction=training_prop,
+                        marker=self.ref_marker,
+                        sc_folder=out_dir+'/cell_feature/')
+            print(f'Time to train model: {round(time.perf_counter() - start_t, 2)} seconds')
+            sys.exit(0)
+            # test model with stimulated data``
+            print('-----------------------------------------------------------------')
+            print('Start to test model')
+            start_t = time.perf_counter()
+            deconv.test(out_dir=out_dir,
+                        expression=testing_data,
+                        fraction=testing_prop,
+                        marker_path=self.ref_marker,
+                        save_plot = True)
+            print(f'Time to test model: {round(time.perf_counter() - start_t, 2)} seconds')
+
+            # prediction
+            print('Start to infer cell type fraction from bulk data')
+            start_t = time.perf_counter()
+            deconv.fit()
+            print(f'Time to calculate cell type fraction: {round(time.perf_counter() - start_t, 2)} seconds')
+    
+        elif mode == 'prediction':
+            # prediction
+            print('Start to infer cell type fraction from bulk data')
+            deconv = GraphDeconv(mode='prediction')
+            deconv.fit()
+            print(f'Time to calculate cell type fraction: {round(time.perf_counter() - start_t, 2)} seconds')
+
+        else:
+            raise ValueError('For deconvolution, only prediction or training mode could be selected')
+
 
 
         '''

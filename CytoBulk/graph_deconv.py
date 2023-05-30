@@ -141,7 +141,7 @@ def configure_device(use_gpu):
 class GraphDeconv:
     def __init__(
             self,
-            cell_num=100,
+            cell_num=200,
             mode=Const.MODE_PREDICTION,
             use_gpu=False
     ):
@@ -177,21 +177,29 @@ class GraphDeconv:
         """
             
         """
+    def test(self,
+             testdata,
+             testlabel,
+             marker=None,
+             sc_folder=None,
+             batch_size = Const.BATCH_SIZE):
+        X_test, y_test = torch.FloatTensor(testdata), torch.FloatTensor(testlabel)
+
 
     def train(
         self,
         out_dir,
-        expression_path=None,
-        fraction_path=None,
-        marker_path=None,
+        expression=None,
+        input_fraction=None,
+        marker=None,
         sc_folder=None,
         batch_size = Const.BATCH_SIZE
     ):
         """
         out_dir: string, the directory for saving trained models.
-        expression_path: string, needed if `mode` is `training`, the path of the bulk expression file.
-        fraction_path: string, needed if `mode` is `training`, the path of the bulk fraction file.
-        marker_path: string, needed if `mode` is `training`, the path of the gene marker file.
+        expression: string, needed if `mode` is `training`, the path of the bulk expression file.
+        fraction: string, needed if `mode` is `training`, the path of the bulk fraction file.
+        marker: string, needed if `mode` is `training`, the path of the gene marker file.
         sc_folder: string, needed if `mode` is `training`, the path of the folder containing single cell reference.
         """
 
@@ -202,24 +210,17 @@ class GraphDeconv:
         
         check_paths(output_folder=out_dir)
 
-        if not (expression_path and fraction_path and marker_path and sc_folder):
-            raise ValueError("Please provide necessary files under the  training mode.")
-        print("Reading expression data...")
-        input_expression = pd.read_csv(expression_path)
-        print("Reading fraction data...")
-        input_fraction = pd.read_csv(fraction_path)
-        if input_expression.shape[0] != input_fraction.shape[0]:
-            raise ValueError(f"Please check the input, the shape of the expression file {input_expression.shape} does not match the one of fraction {input_fraction.shape}.")
+        if expression.shape[0] != input_fraction.shape[0]:
+            raise ValueError(f"Please check the input, the shape of the expression file {expression.shape} does not match the one of fraction {fraction.shape}.")
         
 
-        marker = pd.read_csv(marker_path) # NOTE: check if needed
-        tot_cell_list = list(marker.columns)[1:]
+        tot_cell_list=marker.keys() 
 
         for cell in tot_cell_list:
-            print(f"Start training {cell}...")
+            print(f"Start training the model for {cell} cell type...")
 
-            sel_gene = marker[cell].dropna()
-            input_bulk = input_expression.loc[:, input_expression.columns.isin(sel_gene)]
+            sel_gene = marker[cell]
+            input_bulk = expression.loc[:, expression.columns.isin(sel_gene)]
             # print(input_bulk.shape)
             input_bulk = input_bulk.sample(n=batch_size*(input_bulk.shape[1] // batch_size), axis=1, random_state=Const.SEED)
             train_data = input_bulk.values
@@ -270,14 +271,15 @@ class GraphDeconv:
             print("Done.")
 
 
+
 # for quick testing
 if __name__ == "__main__":
     deconv = GraphDeconv(
         mode="training"
     )
     deconv.train(out_dir="../output/model",
-                 expression_path="../output/training_data/expression.csv",
-                 fraction_path="../output/training_data/fraction.csv",
-                 marker_path="../output/marker_gene.csv",
+                 expression="../output/training_data/expression.csv",
+                 fraction="../output/training_data/fraction.csv",
+                 marker="../output/marker_gene.csv",
                  sc_folder="../output/cell_feature/"
                 )
