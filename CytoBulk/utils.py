@@ -83,12 +83,12 @@ def get_stimulation(n_celltype,n_sample,meta,sc_data,out_dir,n,type='training'):
             sample[i] += sc_data.loc[:,select_index].sum(axis=1)
     sample = sample/n
     print("Sampling down")
-    print("Saving simulated data...")
+    # print("Saving simulated data...")
     #out_dir = check_paths(out_dir+'/training_data')
     sample = pd.DataFrame(sample,index=['Sample'+str(i) for i in range(n_sample)],columns=sc_data.index.values)
-    sample.to_csv(out_dir+"/expression.csv")
+    # sample.to_csv(out_dir+"/expression.csv")
     cell_prop = pd.DataFrame(cell_prop,index=['Sample'+str(i) for i in range(n_sample)],columns=allcellname)
-    cell_prop.to_csv(out_dir+"/fraction.csv")
+    # cell_prop.to_csv(out_dir+"/fraction.csv")
     return sample,cell_prop
 
 
