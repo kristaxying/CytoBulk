@@ -58,15 +58,15 @@ def read_marker_genes(marker_path):
     return marker_genes.to_dict('list')
 
 
-def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir):
+def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir,save_ref=True):
 
     """read sc data and meta information to train model.
     args:
-        sc_path: sc-rna data path.
-        meta_path: meta data with cell type information path.
-        marker: the marker gene list if provided or none.
-        sc_nor: True for using preprocessing on sc data.
-        out_path: the dir to store the result files.
+        sc_path:    sc-rna data path.
+        meta_path:  meta data with cell type information path.
+        marker:     the marker gene list if provided or none.
+        sc_nor:     Boolean, true for using preprocessing on sc data.
+        out_path:   the dir to store the result files.
     """
     warnings.filterwarnings(action='ignore', category=FutureWarning) 
     warnings.filterwarnings(action='ignore', category=UserWarning)
@@ -126,7 +126,7 @@ def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir):
     sc_data = pd.DataFrame(sc_data.X,index=sc_data.obs_names,columns=sc_data.var_names).transpose()
     sc_data.index.name = 'GeneSymbol'
     cell_id = meta.index.tolist()
-    common_id = set(cell_id) & set(sc_data.columns)
+    common_id = list(set(cell_id) & set(sc_data.columns))
     sc_data = sc_data.loc[:,common_id]
     meta = meta.loc[common_id,:]
     print(f"Found {len(common_id)} valid cell")

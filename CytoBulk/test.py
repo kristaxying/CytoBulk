@@ -43,10 +43,10 @@ def main(arguments):
     M.set_sc_data(sc_data)
     M.spatial_mapping()
     '''
-    sc = './data/CHOL_GSE142784_expression.h5ad'
+    sc = './CytoBulk/data/CHOL_GSE142784_expression.h5ad'
     #meta = './data/CHOL_GSE142784_meta.txt'
     T = CytoBulk()
-    T.bulk_deconv(mode='training',training_sc=sc,marker_label='auto_find')
+    T.bulk_deconv(mode='training',training_sc_path=sc,marker_label='auto_find')
     
 
 
