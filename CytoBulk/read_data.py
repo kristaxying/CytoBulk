@@ -109,7 +109,7 @@ def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir,save_ref=True):
         sc.pp.highly_variable_genes(sc_data, min_mean=0.0125, max_mean=3, min_disp=0.5)
         print("Finding marker genes...")
         sc.tl.rank_genes_groups(sc_data, 'Celltype_minor', method='t-test')
-        marker = pd.DataFrame(sc_data.uns['rank_genes_groups']['names']).head(100)
+        marker = pd.DataFrame(sc_data.uns['rank_genes_groups']['names']).head(25)
         print("Saving marker genes...")
         marker.to_csv(out_dir+"/marker_gene.csv")
         marker = marker.to_dict('list')
