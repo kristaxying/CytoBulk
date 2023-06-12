@@ -55,7 +55,14 @@ def read_marker_genes(marker_path):
         the list of marker_genes_by_cell_type.
     '''
     marker_genes = read_file(marker_path,'marker_gene')
-    return marker_genes.to_dict('list')
+    marker_list = marker_genes.to_dict('list')
+    cells = marker_list.keys()
+    for i in cells:
+        cell_marker = marker_list[i]
+        cleanedList = [x for x in cell_marker if str(x) != 'nan']
+        marker_list[i] = cleanedList
+    return marker_list
+
 
 
 def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir,save_ref=True):
