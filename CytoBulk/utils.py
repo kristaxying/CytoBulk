@@ -68,9 +68,9 @@ def get_stimulation(n_celltype,n_sample,meta,sc_data,out_dir,n,type='training'):
         meta_index[key] = np.array(value)
     cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
     print(f'The number of samples is {cell_prop.shape[0]}, the number of cell types is {cell_prop.shape[1]}')
-    for i in range(int(cell_prop.shape[1] * 0.1)):
+    for i in range(int(cell_prop.shape[1])):
         indices = np.random.choice(np.arange(cell_prop.shape[0]), replace=False, size=int(cell_prop.shape[0] * 0.1))
-        cell_prop[i, indices] = 0
+        cell_prop[indices, i] = 0
     # get cell number based on cell prop
     print('Start sampling...')
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))

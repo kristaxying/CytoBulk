@@ -96,8 +96,14 @@ def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir):
     if marker == None and sc_nor:
         print("Start to preprocess the ref scRNA seq data...")
         print("Filtering cells...")
-        sc.pp.filter_cells(sc_data, min_genes=200)
-        sc.pp.filter_genes(sc_data, min_cells=10)
+        # sc.pp.filter_cells(sc_data, min_genes=200)
+        # sc.pp.filter_genes(sc_data, min_cells=10)
+
+        min_cell_cutoff = int(sc_data.shape[0] * 0.5)
+        sc.pp.filter_genes(sc_data, min_cells=min_cell_cutoff)
+        min_gene_cutoff = int(sc_data.shape[1] * 0.1)
+        sc.pp.filter_cells(sc_data, min_genes=min_gene_cutoff)
+
         sc_data.var['mt'] = sc_data.var_names.str.startswith('MT-')  # annotate the group of mitochondrial genes as 'mt'
         sc.pp.calculate_qc_metrics(sc_data, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
         sc_data = sc_data[sc_data.obs.n_genes_by_counts < 2500, :]
@@ -109,7 +115,7 @@ def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir):
         sc.pp.highly_variable_genes(sc_data, min_mean=0.0125, max_mean=3, min_disp=0.5)
         print("Finding marker genes...")
         sc.tl.rank_genes_groups(sc_data, 'Celltype_minor', method='t-test')
-        marker = pd.DataFrame(sc_data.uns['rank_genes_groups']['names']).head(100)
+        marker = pd.DataFrame(sc_data.uns['rank_genes_groups']['names']).head(25)
         print("Saving marker genes...")
         marker.to_csv(out_dir+"/marker_gene.csv")
         marker = marker.to_dict('list')
@@ -126,7 +132,7 @@ def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir):
     sc_data = pd.DataFrame(sc_data.X,index=sc_data.obs_names,columns=sc_data.var_names).transpose()
     sc_data.index.name = 'GeneSymbol'
     cell_id = meta.index.tolist()
-    common_id = set(cell_id) & set(sc_data.columns)
+    common_id = list(set(cell_id) & set(sc_data.columns))
     sc_data = sc_data.loc[:,common_id]
     meta = meta.loc[common_id,:]
     print(f"Found {len(common_id)} valid cell")

@@ -99,7 +99,7 @@ class CytoBulk:
                         fraction=testing_prop,
                         marker=self.ref_marker,
                         sc_folder=out_dir+'/cell_feature/',
-                        model_folder=out_dir
+                        model_folder=out_dir+'/model'
                         # save_plot = True
                         )
             print(f'Time to test model: {round(time.perf_counter() - start_t, 2)} seconds')
@@ -112,7 +112,7 @@ class CytoBulk:
             expression=testing_data, # CAUTION: change to bulk exp later
             marker=self.ref_marker,
             sc_folder=out_dir+'/cell_feature/',
-            model_folder=out_dir
+            model_folder=out_dir+'/model'
         )
         print(f'Time to calculate cell type fraction: {round(time.perf_counter() - start_t, 2)} seconds')
 

@@ -20,6 +20,10 @@ out/
 # use lfs if needed
 cnv_input/
 data/
+*.h5ad
 
 # ignore .ipynb which is not directly under root
 */*.ipynb
+
+# logs
+*.out
