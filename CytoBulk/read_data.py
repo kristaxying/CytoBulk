@@ -103,8 +103,14 @@ def read_training_data(sc_path,meta_path,marker,sc_nor,out_dir,save_ref=True):
     if marker == None and sc_nor:
         print("Start to preprocess the ref scRNA seq data...")
         print("Filtering cells...")
-        sc.pp.filter_cells(sc_data, min_genes=200)
-        sc.pp.filter_genes(sc_data, min_cells=10)
+        # sc.pp.filter_cells(sc_data, min_genes=200)
+        # sc.pp.filter_genes(sc_data, min_cells=10)
+
+        min_cell_cutoff = int(sc_data.shape[0] * 0.5)
+        sc.pp.filter_genes(sc_data, min_cells=min_cell_cutoff)
+        min_gene_cutoff = int(sc_data.shape[1] * 0.1)
+        sc.pp.filter_cells(sc_data, min_genes=min_gene_cutoff)
+
         sc_data.var['mt'] = sc_data.var_names.str.startswith('MT-')  # annotate the group of mitochondrial genes as 'mt'
         sc.pp.calculate_qc_metrics(sc_data, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
         sc_data = sc_data[sc_data.obs.n_genes_by_counts < 2500, :]

@@ -50,6 +50,11 @@ class CytoBulk:
             cell_fraction:          dataframe, columns are the cell type, rows are sample_name.
             mapped_sc:              dataframe, columns are the sample name, rows are GeneSymbol.
         """
+
+        # check mode
+        if not(mode == "training" or mode == "prediction"):
+            raise ValueError('For deconvolution, only prediction or training mode could be selected')
+
         # read make gene
         if marker_label == 'self_designed':
             self.ref_marker = read_marker_genes(ref_marker_path)
@@ -59,7 +64,8 @@ class CytoBulk:
         # check output dir
         out_dir = check_paths(self.out_path)
 
-        # if mode = trainging, stimulation and train.
+        deconv = GraphDeconv(mode='training')
+        # if mode = training, stimulation and train.
         if mode == 'training':
             if training_sc_path is None:
                 raise ValueError('For deconvolution, if using training mode, please provide scRNA-seq data and corresponding cell meta.')
@@ -72,7 +78,6 @@ class CytoBulk:
                                                                                                         sc_nor = sc_nor,
                                                                                                         out_dir = out_dir)
             
-            deconv = GraphDeconv(mode='training')
             print('====================================================================')
             print('====================================================================')
             print('Start to train models')
@@ -80,39 +85,36 @@ class CytoBulk:
             # train model
             deconv.train(out_dir=out_dir,
                         expression=training_data,
-                        input_fraction=training_prop,
+                        fraction=training_prop,
                         marker=self.ref_marker,
                         sc_folder=out_dir+'/cell_feature/')
             print(f'Time to train model: {round(time.perf_counter() - start_t, 2)} seconds')
-            sys.exit(0)
-            # test model with stimulated data``
+
+            # test model with stimulated data
             print('-----------------------------------------------------------------')
             print('Start to test model')
             start_t = time.perf_counter()
             deconv.test(out_dir=out_dir,
                         expression=testing_data,
                         fraction=testing_prop,
-                        marker_path=self.ref_marker,
-                        save_plot = True)
+                        marker=self.ref_marker,
+                        sc_folder=out_dir+'/cell_feature/',
+                        model_folder=out_dir+'/model'
+                        # save_plot = True
+                        )
             print(f'Time to test model: {round(time.perf_counter() - start_t, 2)} seconds')
 
-            # prediction
-            print('Start to infer cell type fraction from bulk data')
-            start_t = time.perf_counter()
-            deconv.fit()
-            print(f'Time to calculate cell type fraction: {round(time.perf_counter() - start_t, 2)} seconds')
-    
-        elif mode == 'prediction':
-            # prediction
-            print('Start to infer cell type fraction from bulk data')
-            deconv = GraphDeconv(mode='prediction')
-            deconv.fit()
-            print(f'Time to calculate cell type fraction: {round(time.perf_counter() - start_t, 2)} seconds')
-
-        else:
-            raise ValueError('For deconvolution, only prediction or training mode could be selected')
-
-
+        # prediction
+        print('Start to infer cell type fraction from bulk data')
+        start_t = time.perf_counter()
+        deconv.fit(
+            out_dir=out_dir,
+            expression=testing_data, # CAUTION: change to bulk exp later
+            marker=self.ref_marker,
+            sc_folder=out_dir+'/cell_feature/',
+            model_folder=out_dir+'/model'
+        )
+        print(f'Time to calculate cell type fraction: {round(time.perf_counter() - start_t, 2)} seconds')
 
         '''
         elif mode == "prediction":
