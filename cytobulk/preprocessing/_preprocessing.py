@@ -8,6 +8,8 @@ from ._rpackage import find_marker_giotto,remove_batch_effect
 from ._filtering import qc_bulk_sc
 import warnings
 from os.path import exists
+import json
+import sys
 
 
 
@@ -255,7 +257,7 @@ def preprocessing(bulk_data,
                 db_marker[i] = tmp
 
     marker_dict,marker_gene,common_cell = _join_marker(sc_adata,annotation_key,db_marker,common_cell,out_dir,dataset_name)
-
+    # debug
     print('Finish finding vaild marker genes')
     sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(common_cell),marker_gene]
     bulk_adata = bulk_adata[:,marker_gene]
@@ -298,7 +300,11 @@ def preprocessing(bulk_data,
         if save:
             out_dir = utils.check_paths(f'{out_dir}/filtered')
             pseudo_bulk.write_h5ad(f"{out_dir}/pseudo_bulk_{dataset_name}.h5ad")
+            sc_adata.write_h5ad(f"{out_dir}/sc_data_{dataset_name}.h5ad")
+            bulk_adata.write_h5ad(f"{out_dir}/bulk_data_{dataset_name}.h5ad")
+            with open(f"{out_dir}/marker_dict.json", "w") as outfile: 
+                json.dump(marker_dict, outfile)
 
-    return sc_adata, pseudo_bulk, bulk_adata, marker_dict
+    return sc_adata, pseudo_bulk, bulk_adata, marker_dict, annotation_key
 
     

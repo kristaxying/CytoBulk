@@ -3,12 +3,9 @@
 import pandas as pd
 import numpy as np
 import os
-from docopt import docopt
 from sklearn.metrics.pairwise import cosine_similarity
 import scipy.spatial as sp
 
-# for testing
-from log_colors import colors
 
 pd.set_option('display.max_columns', None)
 # pd.set_option('display.max_rows', None)

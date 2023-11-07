@@ -3,17 +3,21 @@ import pandas as pd
 from . import model
 from .. import get
 from .. import utils
+from .. import preprocessing as pp
+from os.path import exists
+import json
+import time
+import scanpy as sc
 
 
-
-
-def bulk_deconv(bulk_adata, 
-                presudo_bulk, 
-                sc_adata,
-                marker_dict,
-                annotation_key = "cell_type", 
-                counts_location="batch_effected", 
-                out_dir="./out_put"):
+def _bulk_sc_deconv(bulk_adata, 
+                    presudo_bulk, 
+                    sc_adata,
+                    marker_dict,
+                    annotation_key = "cell_type", 
+                    dataset_name = "",
+                    counts_location="batch_effected", 
+                    out_dir="."):
     """
     Preprocessing on bulk and sc adata, including following steps:
         1. QC on bulk and sc adata.
@@ -55,25 +59,74 @@ def bulk_deconv(bulk_adata,
     -------
     Returns the preprocessed bulk data (adata) , stimualted bulk data and sc data (adata).
     """
-
+    start_t = time.perf_counter()
     deconv = model.GraphDeconv(mode="training")
-    training_data = get.count_data(presudo_bulk,counts_location=counts_location)
+    training_data = get.count_data_t(presudo_bulk,counts_location=counts_location)
     training_fraction = get.meta(presudo_bulk,position_key="obs")
-    test_data = get.count_data(bulk_adata,counts_location=counts_location)
-
-    utils.check_path(out_dir)
-    
-    deconv.train(out_dir=out_dir,
+    test_data = get.count_data_t(bulk_adata,counts_location=counts_location)
+    print("=================================================================================================")
+    print('Start to train model.')
+    deconv.train(out_dir=out_dir+'/model',
                 expression=training_data,
                 fraction=training_fraction,
                 marker=marker_dict,
-                sc_adata = sc_adata
-                )
-    deconv.fit(
-            out_dir=out_dir,
-            expression=test_data,
-            marker=marker_dict,
-            sc_folder=out_dir+'/cell_feature/',
-            model_folder=out_dir+'/model'
-        )
+                sc_adata = sc_adata,
+                annotation_key = annotation_key)
+    print(f'Time to finish training model: {round(time.perf_counter() - start_t, 2)} seconds')
+    print("=================================================================================================")
+    print("=================================================================================================")
+    print('Start to predict')
+    start_t = time.perf_counter()
+    deconv_result = deconv.fit(
+                out_dir=out_dir+'/output',
+                expression=test_data,
+                marker=marker_dict,
+                sc_adata = sc_adata,
+                annotation_key = annotation_key,
+                model_folder=out_dir+'/model')
+    print(f'Time to finish deconvolution: {round(time.perf_counter() - start_t, 2)} seconds')
+    print("=================================================================================================")
+    return deconv_result
+
+def bulk_deconv(bulk_data,
+                sc_adata,
+                annotation_key,
+                marker_data=None,
+                rename=None,
+                dataset_name="",
+                out_dir='.',
+                different_source=True,
+                cell_list=None,
+                scale_factors=10000,
+                trans_method="log",
+                save = True,
+                save_figure=True,
+                **kwargs):
+
+
+    if exists(f'{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/sc_data_{dataset_name}.h5ad') and \
+    exists(f'{out_dir}/filtered/bulk_data_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/marker_dict.json'):
+        
+        pseudo_bulk = sc.read_h5ad(f"{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad")
+        sc_adata = sc.read_h5ad(f"{out_dir}/filtered/sc_data_{dataset_name}.h5ad")
+        bulk_adata = sc.read_h5ad(f"{out_dir}/filtered/bulk_data_{dataset_name}.h5ad")
+        with open(f"{out_dir}/filtered/marker_dict.json") as json_file:
+            marker_dict = json.load(json_file)
+    else:
+        sc_adata, pseudo_bulk, bulk_adata, marker_dict = pp.preprocessing(bulk_data,
+                                                                            sc_adata,
+                                                                            annotation_key,
+                                                                            marker_data=marker_data,
+                                                                            rename=rename,
+                                                                            dataset_name=dataset_name,
+                                                                            out_dir=out_dir,
+                                                                            different_source=different_source,
+                                                                            cell_list=cell_list,
+                                                                            scale_factors=scale_factors,
+                                                                            trans_method=trans_method,
+                                                                            save = save,
+                                                                            save_figure=save_figure,
+                                                                            **kwargs)
     
+    return _bulk_sc_deconv(bulk_adata, pseudo_bulk, sc_adata, marker_dict,annotation_key = annotation_key, dataset_name=dataset_name, out_dir=out_dir)
+
