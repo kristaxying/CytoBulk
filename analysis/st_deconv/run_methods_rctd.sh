@@ -8,4 +8,12 @@
 #SBATCH --partition work
 source /home/wangxueying/miniconda3/bin/activate
 conda activate cytobulk
-Rscript /data1/wangxueying/cytobulk/code/st_other_deconv.R --rna_fn '/data1/wangxueying/cytobulk/eval_data/THCA_GSE148673_expression_test.csv' --sc_fn '/data1/wangxueying/cytobulk/eval_data/THCA_GSE148673.h5Seurat' --out_dir '/data1/wangxueying/cytobulk/out' --project 'THCA_GSE148673' --method 'rctd'
+
+
+
+Rscript /data1/wangxueying/cytobulk/code/st_other_deconv.R --rna_fn '/data1/wangxueying/cytobulk/eval_data/HNSC_GSE139324/HNSC_GSE139324_expression_test.csv' \
+--meta_fn '/data1/wangxueying/cytobulk/eval_data/HNSC_GSE139324/meta_test.csv' \
+--sc_fn '/data1/wangxueying/cytobulk/eval_data/HNSC_GSE139324/HNSC_GSE139324.h5Seurat' \
+--out_dir '/data1/wangxueying/cytobulk/out/HNSC_GSE139324' \
+--project 'HNSC_GSE139324' \
+--method 'rctd'

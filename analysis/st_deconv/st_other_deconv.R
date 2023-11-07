@@ -12,6 +12,7 @@ library(Giotto)
 library(CARD)
 library(spacexr)
 library(Biobase)
+
 ## install the packages
 #if (!require("BiocManager", quietly = TRUE))
 #install.packages("BiocManager")
@@ -41,10 +42,19 @@ read_rna <- function(opt){
   opt$st_data <- t(read.csv(opt$rna_fn,row.names = 1))
   opt$sparse_st_data <- Matrix(as.matrix(opt$st_data), sparse=T)
   sc_data <- LoadH5Seurat(opt$sc_fn,assays = "RNA")
+  if(opt$project=="MM_GSE151310"){
+      sc_data <- subset(x = sc_data, subset = (Celltype..minor.lineage. %in% c("B","Th1","Th17","CD8Tcm","MAIT","CD4Tn","CD8Teff","CD8Tex","CD8Tem","cDC1","cDC2","CD8Tn","M1","M2","Mast","Monocyte","NK","pDC","CD4Tconv","Plasma","Tprolif","Treg","Th2")))}else{
+      sc_data <- subset(x = sc_data, subset = (Celltype..minor.lineage. %in% c("B","Th1","Th17","CD8Tcm","MAIT","CD4Tn","CD8Teff","CD8Tex","CD8Tem","cDC1","cDC2","CD8Tn","M1","M2","Mast","Monocyte","NK","pDC","CD4Tconv","Plasma","Tprolif","Treg","Tfh","Th2","CD4Teff","Fibroblasts","Epithelial","Endothelial","Myofibroblasts")))}
+  
+  if(opt$project=="HNSC_GSE139324"){
+      sc_data <- subset(x = sc_data, subset = (Disease %in% c("Healthy")))
+      if(opt$method=="rctd"){
+          sc_data <- subset(x = sc_data, subset = (Celltype..minor.lineage. %in% c("B","Tfh","Th1","Th17","CD8Tcm","CD4Tn","CD8Teff","CD8Tex","CD8Tem","cDC1","cDC2","CD8Tn","M1","MAIT","Monocyte","NK","pDC","CD4Tconv","Plasma","Tprolif","Treg","Th2")))}}
+
   opt$sc_data <- GetAssay(sc_data,assay = "RNA")@counts
   opt$sc_anno <- sc_data@meta.data[,"Celltype..minor.lineage."]
   opt$sc_meta <- sc_data@meta.data
-  opt$st_meta <- read.csv(opt$st_meta,row.names = 1)
+  opt$st_meta <- read.csv(opt$meta_fn,row.names = 1)
   return(opt)
 }
 
@@ -91,20 +101,26 @@ run_card <- function(opt){
     spatial_count = opt$sparse_st_data,
     spatial_location = opt$st_meta,
     ct.varname = "Celltype..minor.lineage.",
-    ct.select = unique(sc_meta$Celltype..minor.lineage.),
+    ct.select = unique(opt$sc_meta$Celltype..minor.lineage.),
     sample.varname = "Sample",
     minCountGene = 100,
     minCountSpot = 5)
   CARD_obj = CARD_deconvolution(CARD_object = CARD_obj)
+  print(CARD_obj@algorithm_matrix)
+  write.csv(CARD_obj@algorithm_matrix$B,file = paste0(opt$out_dir,"/",opt$project,"_card_B.csv"),row.names = TRUE)
   return(CARD_obj@Proportion_CARD)
 }
 run_rctd <- function(opt){
+  card_ref = 2^(as.matrix(opt$sc_data))
+  card_ref = round(card_ref)
+  rctd_st = 2^(as.matrix(opt$st_data))
+  rctd_st = round(rctd_st)
   meta_data <- opt$sc_meta
   cell_types <- meta_data$Celltype..minor.lineage.
   names(cell_types) <- row.names(meta_data)
   cell_types <- as.factor(cell_types)
-  reference <- Reference(as.matrix(opt$sc_data), cell_types)
-  puck <- SpatialRNA(opt$st_meta[,c("x","y")], opt$st_data)
+  reference <- Reference(card_ref, cell_types)
+  puck <- SpatialRNA(opt$st_meta[,c("x","y")], rctd_st)
   myRCTD <- create.RCTD(puck, reference, max_cores = 2)
   myRCTD <- run.RCTD(myRCTD, doublet_mode = 'doublet')
   results <- myRCTD@results
@@ -114,7 +130,7 @@ run_rctd <- function(opt){
 }
 
 run_spatialdwls <- function(opt){
-  my_instructions = createGiottoInstructions(python_path = 'D:/anaconda/ana/envs/py10/python.exe')
+  my_instructions = createGiottoInstructions(python_path = '/home/wangxueying/miniconda3/envs/cytobulk/bin/python')
   st_giotto_object = createGiottoObject(raw_exprs = opt$st_data,
                                         spatial_locs = opt$st_meta,
                                         instructions = my_instructions)
@@ -123,74 +139,92 @@ run_spatialdwls <- function(opt){
                                    gene_det_in_min_cells = 10, 
                                    min_det_genes_per_cell = 0)
   st_giotto_object <- normalizeGiotto(gobject = st_giotto_object)
+  st_giotto_object <- calculateHVG(gobject = st_giotto_object)
+  gene_metadata = fDataDT(st_giotto_object)
+  featgenes = gene_metadata[hvg == 'yes']$gene_ID
+  st_giotto_object <- runPCA(gobject = st_giotto_object, genes_to_use = featgenes, scale_unit = F)
+  signPCA(st_giotto_object, genes_to_use = featgenes, scale_unit = F)
+  st_giotto_object <- createNearestNetwork(gobject = st_giotto_object, dimensions_to_use = 1:10, k = 10)
+  st_giotto_object <- doLeidenCluster(gobject = st_giotto_object, resolution = 0.4, n_iterations = 1000)
+  
+  
+  
   sc_giotto_object <- createGiottoObject(raw_exprs = opt$sc_data,
-                                         instructions = my_instructions)
+                                         instructions = my_instructions,
+                                         cell_metadata = opt$sc_anno)
   sc_giotto_object <- filterGiotto(gobject = sc_giotto_object, 
                                    expression_threshold =0.5, 
                                    gene_det_in_min_cells = 10, 
                                    min_det_genes_per_cell = 0)
   sc_giotto_object <- normalizeGiotto(gobject = sc_giotto_object)
-  sc_giotto_object <- runPCA(gobject = sc_giotto_object)
-  sc_giotto_object <- runUMAP(sc_giotto_object, dimensions_to_use = 1:5)
-  sc_giotto_object = doKmeans(sc_giotto_object, centers = 4, name = 'kmeans_clus')
-  cluster_similarities = getClusterSimilarity(sc_giotto_object,
-                                              cluster_column = 'kmeans_clus')
-  mini_giotto_single_cell = mergeClusters(sc_giotto_object, 
-                                          cluster_column = 'kmeans_clus', 
-                                          min_cor_score = 0.7, 
-                                          force_min_group_size = 4)
-  gini_markers = findGiniMarkers_one_vs_all(gobject = mini_giotto_single_cell,
-                                            cluster_column = 'kmeans_clus')
-  
-  
+  sc_giotto_object <- calculateHVG(gobject = sc_giotto_object)
+  gene_metadata = fDataDT(sc_giotto_object)
+  featgenes = gene_metadata[hvg == 'yes']$gene_ID
+  sc_giotto_object <- runPCA(gobject = sc_giotto_object, genes_to_use = featgenes, scale_unit = F)
+  signPCA(sc_giotto_object, genes_to_use = featgenes, scale_unit = F)
+  sc_giotto_object <- createNearestNetwork(gobject = sc_giotto_object, dimensions_to_use = 1:10, k = 10)
+  sc_giotto_object <- doLeidenCluster(gobject = sc_giotto_object, resolution = 0.4, n_iterations = 1000)
+  cell_metadata = pDataDT(sc_giotto_object)
+  print(cell_metadata)
+  scran_markers_subclusters = findMarkers_one_vs_all(gobject = sc_giotto_object,
+                                                   method = 'scran',
+                                                   expression_values = 'normalized',
+                                                   cluster_column = "leiden_clus")
 
+  Sig_scran <- unique(scran_markers_subclusters$genes[which(scran_markers_subclusters$ranking <= 100)])
+  norm_exp<-2^(sc_giotto_object@norm_expr)-1
+    id<-sc_giotto_object@cell_metadata$V1
+    ExprSubset<-norm_exp[Sig_scran,]
+    Sig_exp<-NULL
+    for (i in unique(id)){
+      Sig_exp<-cbind(Sig_exp,(apply(ExprSubset,1,function(y) mean(y[which(id==i)]))))
+    }
+  colnames(Sig_exp)<-unique(id)
   
-  st_giotto_object = doKmeans(st_giotto_object, centers = 4, name = 'kmeans_clus')
-  cluster_similarities = getClusterSimilarity(st_giotto_object,
-                                              cluster_column = 'kmeans_clus')
-  mini_st_giotto_object = mergeClusters(st_giotto_object, 
-                                          cluster_column = 'kmeans_clus', 
-                                          min_cor_score = 0.7, 
-                                          force_min_group_size = 4)
-  splits = getDendrogramSplits(mini_st_giotto_object, cluster_column = 'merged_cluster')
-  splits = getDendrogramSplits(st_giotto_object, cluster_column = 'merged_cluster')
+  write.table(Sig_exp,file = paste0(opt$out_dir,"/",opt$project,"_marker.csv"),row.names = TRUE,sep=",",col.names=TRUE,quote =FALSE)
   
-  gini_markers = findGiniMarkers_one_vs_all(gobject = mini_giotto_single_cell,
-                                            cluster_column = 'leiden_clus')
-  rank_matrix = makeSignMatrixRank(sc_matrix = as.matrix(opt$sc_data), sc_cluster_ids = as.vector(sc_meta$Celltype..minor.lineage.))
-  st_giotto_object = runHyperGeometricEnrich(gobject = st_giotto_object,
-                                             sign_matrix = rank_matrix)
-  spatCellPlot(gobject = st_giotto_object, 
-               spat_enr_names = 'hypergeometric',
-               cell_annotation_values = as.vector(sc_meta$Celltype..minor.lineage.),
-               cow_n_col = 2,coord_fix_ratio = NULL, point_size = 2.75)
-
-  st_giotto_object = runDWLSDeconv(gobject = st_giotto_object, sign_matrix = rank_matrix)
-  return(st_giotto_object)
+  
+  st_giotto_object = runDWLSDeconv(gobject = st_giotto_object, sign_matrix = Sig_exp,cluster_column = "leiden_clus")
+  st_giotto_result = as.data.frame(st_giotto_object@spatial_enrichment$DWLS)[-1]
+  giotto_sc = cell_metadata
+  return(list("data"=st_giotto_result,"meta"=giotto_sc))
 }
 
 
 run <- function(opt){
   print("read spatial expression data")
-  print(opt)
+
   opt <- read_rna(opt)
+
   if(opt$method=="spotlight"){
     spotlight_input <- spotlight_preprocess(opt)
     spotlight_results <- run_spotlight(spotlight_input)
-    write.csv(spotlight_results,file = paste0(opt$out_dir,"/",opt$project,"spotlight_data.csv"),row.names = TRUE)
+    write.csv(spotlight_results,file = paste0(opt$out_dir,"/",opt$project,"_spotlight_data.csv"),row.names = TRUE)
   }
   if(opt$method=="card"){
     card_results <- run_card(opt)
-    write.csv(card_results,file = paste0(opt$out_dir,"/",opt$project,"card_data.csv"),row.names = TRUE)
+    write.csv(card_results,file = paste0(opt$out_dir,"/",opt$project,"_card_data.csv"),row.names = TRUE)
   }
   if(opt$method=="rctd"){
     rctd_results <- run_rctd(opt)
-    write.csv(rctd_results$weight,file = paste0(opt$out_dir,"/",opt$project,"rctd_results_data.csv"),row.names = TRUE)
-    write.csv(rctd_results$cell_types,file = paste0(opt$out_dir,"/",opt$project,"rctd_results_celltype.csv"),row.names = TRUE)
+    write.csv(rctd_results$weight,file = paste0(opt$out_dir,"/",opt$project,"_rctd_data.csv"),row.names = TRUE)
   }
  if(opt$method=="spatialdwls"){
    spatialdwls_results <- run_spatialdwls(opt)
-   saveRDS(spatialdwls_results, file = paste0(opt$out_dir,"/",opt$project,"spatialdwls_results.rds"))
+   write.csv(spatialdwls_results$data,file = paste0(opt$out_dir,"/",opt$project,"_spatialdwls_data.csv"),row.names = TRUE)
+   write.csv(spatialdwls_results$meta,file = paste0(opt$out_dir,"/",opt$project,"_spatialdwls_meta.csv"),row.names = TRUE)
+ }
+  if(opt$method=="read_data"){
+   #write.table(opt$sc_data,file = paste0(opt$out_dir,"/",opt$project,"_sc_data.txt"),row.names = TRUE,sep='\t',quote =FALSE)
+   samples = colnames(opt$sc_data)
+   print(samples)
+   row.names(opt$sc_anno) <- samples
+   print(opt$sc_anno)
+   #row.names(opt$sc_meta) <- samples
+   #write.table(t(opt$sc_data),file = paste0(opt$out_dir,"/",opt$project,"_sc_data_cell2.txt"),row.names = TRUE,sep='\t',quote =FALSE)
+   write.table(opt$sc_anno,file = paste0(opt$out_dir,"/",opt$project,"_sc_cell.txt"),row.names = TRUE,sep='\t',col.names=FALSE,quote =FALSE)
+   #write.table(opt$sc_meta,file = paste0(opt$out_dir,"/",opt$project,"_sc_meta.txt"),row.names = TRUE,sep='\t',quote =FALSE)
+   #write.table(opt$st_data,file = paste0(opt$out_dir,"/",opt$project,"_st_data.txt"),row.names = TRUE,sep='\t',quote =FALSE)
    
  }
 }
