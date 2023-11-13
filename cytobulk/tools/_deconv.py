@@ -4,6 +4,7 @@ from . import model
 from .. import get
 from .. import utils
 from .. import preprocessing as pp
+from ._mapping import bulk_mapping
 from os.path import exists
 import json
 import time
@@ -101,8 +102,9 @@ def bulk_deconv(bulk_data,
                 trans_method="log",
                 save = True,
                 save_figure=True,
+                mapping_sc=True,
+                n_cell=100,
                 **kwargs):
-
 
     if exists(f'{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/sc_data_{dataset_name}.h5ad') and \
     exists(f'{out_dir}/filtered/bulk_data_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/marker_dict.json'):
@@ -127,6 +129,20 @@ def bulk_deconv(bulk_data,
                                                                             save = save,
                                                                             save_figure=save_figure,
                                                                             **kwargs)
-    
-    return _bulk_sc_deconv(bulk_adata, pseudo_bulk, sc_adata, marker_dict,annotation_key = annotation_key, dataset_name=dataset_name, out_dir=out_dir)
+    deconv_result = _bulk_sc_deconv(bulk_adata, 
+                                    pseudo_bulk, 
+                                    sc_adata, 
+                                    marker_dict,
+                                    annotation_key = annotation_key, 
+                                    dataset_name=dataset_name, 
+                                    out_dir=out_dir)
+    if mapping_sc:
+        bulk_adata,sc_mapping_dict = bulk_mapping(deconv_result,
+                                                sc_adata,
+                                                bulk_adata,
+                                                n_cell,
+                                                annotation_key)
+        bulk_adata.obsm['mapping_dict'] = pd.DataFrame(sc_mapping_dict)
+
+    return deconv_result,bulk_adata
 

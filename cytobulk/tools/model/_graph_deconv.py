@@ -314,22 +314,26 @@ def train_cell_loop_once(cell,
                     change_lr(model_graph_optim, 0.0005)
                     change_lr(model_linear_optim, 0.0015)
                     print("graph training--0.0005,linear training--0.0015")
+                elif pearson_r> 0.80 and epo>15 and epo<=20:
+                    change_lr(model_graph_optim, 0.0005)
+                    change_lr(model_linear_optim, 0.0015)
+                    print("graph training--0.0005,linear training--0.0015")
                 elif epo>= 22:
                     graph_break = True
                     change_lr(model_linear_optim, 0.0005)
                     print("epo>15,graph training break,linear training--0.0005")
-            elif graph_break and epo>22:
+            elif graph_break and epo>1:
                 if not linear_stop:
-                    if loss_f < pre_loss and pre_loss-loss_f <0.001 and pre_loss-loss_f > 0.0001:
+                    if loss_f < 0.001:
                         if loss_f < 0.001 and loss_f > 0.0005:
                             change_lr(model_linear_optim, 0.0005)
                             print("change linear training--0.0005")
-                        elif loss_f <= 0.0005:
-                            change_lr(model_linear_optim, 0.0001)
-                            print("change linear training--0.0001")
                         elif loss_f < pre_loss and pre_loss-loss_f <= 0.0001:
                             linear_stop = True
                             print("stop linear training")
+                        elif loss_f <= 0.0005:
+                            change_lr(model_linear_optim, 0.0001)
+                            print("change linear training--0.0001")
                 if linear_stop and graph_break:
                     break
 

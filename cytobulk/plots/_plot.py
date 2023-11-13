@@ -10,15 +10,17 @@ from matplotlib import colors
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import json
-
+from .. import utils
+import matplotlib.patches as mpatches
 
 class Const:
     """
     Some COLOR SET used in the class.
     """
     DIFF_COLOR_2 = ['#F9B9B7','#61A0AF']
-    FIG_FORMAT = 'png'
+    #DIFF_COLOR_N = ['#005f73','#94d2bd','#e9d8a6','#fac748','#e76f51','#9b2226']
+    DIFF_COLOR_N = ['#191970','#ADD8E6']
+    FIG_FORMAT = 'svg'
 
 
 

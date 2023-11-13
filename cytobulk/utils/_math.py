@@ -2,12 +2,15 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, csr_matrix, csc_matrix
 from sklearn.utils.sparsefuncs import inplace_column_scale, inplace_row_scale
+from sklearn.preprocessing import StandardScaler
 import numba
 import mkl
 from numba import njit, prange
 import anndata._core.views
 from sklearn.decomposition import PCA
 import scanpy as sc
+from sklearn.metrics.pairwise import cosine_similarity
+import scipy.spatial as sp
 
 def get_sum(
     X,
@@ -112,3 +115,16 @@ def normalization_cpm(adata,scale_factors=None,trans_method=None):
     if trans_method == 'log1p':
         sc.pp.log1p(adata)
     return data
+
+def normal_center(data):
+    scaler = StandardScaler()
+    return scaler.transform(data.values)
+
+    
+def pear(A,B):
+    tmp = np.corrcoef(A.flatten(), B.flatten())
+    return tmp[0,1] 
+
+def calculate_distance(matrix1,matrix2):
+    return (1 - sp.distance.cdist(matrix1, matrix2, 'cosine'))
+    
