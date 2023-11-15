@@ -135,19 +135,7 @@ def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log
 
     return sc_data,bulk_data
 
-def _plot_pca_scatter(bulk_adata, pseudo_bulk, out_dir):
 
-    out_dir = utils.check_paths(f'{out_dir}/plots')
-    # before batch effect
-    before_x1 = get.count_data(bulk_adata)
-    before_x2 = get.count_data(pseudo_bulk)
-    plots.scatter_2label(utils.pca(before_x1),utils.pca(before_x2), X1_label="input bulk", 
-                        X2_label="reference bulk", title="before batch effect", out_dir=out_dir)
-    # before batch effect
-    after_x1 = get.count_data(bulk_adata,counts_location="batch_effected")
-    after_x2 = get.count_data(pseudo_bulk,counts_location="batch_effected")
-    plots.scatter_2label(utils.pca(after_x1),utils.pca(after_x2),X1_label="input bulk", 
-                        X2_label="reference bulk", title="after batch effect", out_dir=out_dir)
 
 
 def preprocessing(bulk_data,
@@ -286,7 +274,7 @@ def preprocessing(bulk_data,
         pseudo_bulk, bulk_adata = remove_batch_effect(pseudo_adata, bulk_adata, out_dir=out_dir, project=dataset_name)
         #save pca figure before and after batch effect.
         if save_figure:
-            _plot_pca_scatter(bulk_adata, pseudo_bulk,out_dir)
+            plots.batch_effect(bulk_adata, pseudo_bulk,out_dir)
         print('Done')
 
         if save:

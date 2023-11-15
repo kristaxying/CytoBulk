@@ -11,8 +11,16 @@ import time
 
 
 
-def bulk_mapping(frac_data,sc_adata,bulk_adata,n_cell,annotation_key,bulk_layer=None,sc_layer=None,reorder=True,multiprocessing=True):
-    
+def bulk_mapping(frac_data,
+                sc_adata,
+                bulk_adata,
+                n_cell,
+                annotation_key,
+                bulk_layer=None,
+                sc_layer=None,
+                reorder=True,
+                multiprocessing=True):
+
     start_t = time.perf_counter()
     print("=================================================================================================")
     print('Start to mapping bulk data with single cell dataset.')

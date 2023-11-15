@@ -53,7 +53,7 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
 
 
 
-def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project='',save=True):
+def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project=''):
     """
     Remove batch effect between pseudo_bulk and input bulk data.
 
