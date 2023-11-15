@@ -139,6 +139,7 @@ def bulk_deconv(bulk_data,
     -------
     Returns the deconvolution result and reconstructed bulk.
     """
+    # check the filtered dataset. If exist, skipping preprocessing.
     if exists(f'{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/sc_data_{dataset_name}.h5ad') and \
     exists(f'{out_dir}/filtered/bulk_data_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/marker_dict.json'):
         
@@ -148,6 +149,7 @@ def bulk_deconv(bulk_data,
         with open(f"{out_dir}/filtered/marker_dict.json") as json_file:
             marker_dict = json.load(json_file)
     else:
+        #preprocessing
         sc_adata, pseudo_bulk, bulk_adata, marker_dict = pp.preprocessing(bulk_data,
                                                                             sc_adata,
                                                                             annotation_key,
@@ -162,6 +164,7 @@ def bulk_deconv(bulk_data,
                                                                             save = save,
                                                                             save_figure=save_figure,
                                                                             **kwargs)
+    #deconvolution
     deconv_result = _bulk_sc_deconv(bulk_adata, 
                                     pseudo_bulk, 
                                     sc_adata, 
@@ -170,6 +173,7 @@ def bulk_deconv(bulk_data,
                                     dataset_name=dataset_name, 
                                     out_dir=out_dir)
     if mapping_sc:
+        #bulk reconstruction
         bulk_adata,sc_mapping_dict = bulk_mapping(deconv_result,
                                                 sc_adata,
                                                 bulk_adata,
