@@ -41,7 +41,6 @@ run_giotto <- function(sc_data, sc_anno, python_path, out_dir, project, save=TRU
   if(save==TRUE){
       write.table(Sig_exp,file = paste0(out_dir,"/",project,"_marker.txt"),row.names = TRUE,sep="\t",col.names=TRUE,quote =FALSE)
   }
-  return(Sig_exp)
 }
 
 run_combat <- function(bulk, meta,out_dir='./', project='',save=TRUE){
@@ -50,6 +49,4 @@ run_combat <- function(bulk, meta,out_dir='./', project='',save=TRUE){
   if(save==TRUE){
       write.table(combat_edata,file = paste0(out_dir,"/",project,"_batch_effected.txt"),row.names = TRUE,sep="\t",col.names=TRUE,quote =FALSE)
   }
-
-  return (combat_edata)
 }

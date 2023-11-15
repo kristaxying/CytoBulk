@@ -9,6 +9,7 @@ from ._filtering import qc_bulk_sc
 import warnings
 from os.path import exists
 import json
+import time
 import sys
 
 
@@ -77,8 +78,13 @@ def _join_marker(sc_adata,annotation_key,marker_dict,common_cell,out_dir='./',da
     -------
     Returns the marker gene dictionary from both database and auto-seeking.
     """
+    
     if not exists(f'{out_dir}/{dataset_name}_marker.txt'):
+        print("-------------------------Start finding cell type marker genes using Gitto--------------------------")
+        start_t = time.perf_counter()
         marker_gene = find_marker_giotto(sc_adata,annotation_key,out_dir,dataset_name)
+        print("-------------------------------Finish marker gene detection--------------------------------------")
+        print(f'Time to finish marker gene detection: {round(time.perf_counter() - start_t, 2)} seconds')
     else:
         print(f'{out_dir}/{dataset_name}_marker.txt already exists, skipping find marker.')
         marker_gene = pd.read_csv(f"{out_dir}/{dataset_name}_marker.txt",sep='\t')
@@ -88,10 +94,10 @@ def _join_marker(sc_adata,annotation_key,marker_dict,common_cell,out_dir='./',da
 
 
 
-def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log1p',save=False,project='',out_dir='./'):
+def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log',save=False,project='',out_dir='./'):
     """
     Normalization on bulk and sc adata.
-        CPM = readsMappedToGene * 1/totalNumReads * 106
+        CPM = readsMappedToGene * 1/totalNumReads * 10^4
         totalNumReads       - total number of mapped reads of a sample
         readsMappedToGene   - number of reads mapped to a selected gene
 
@@ -105,7 +111,7 @@ def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log
         The number of counts to normalize every observation to before computing profiles. If `None`, no normalization is performed. 
     trans_method:
         What transformation to apply to the expression before computing the profiles. 
-        - "log1p": log(x+1)
+        - `log`: log(x+1)
         - `None`: no transformation
         
 
@@ -127,11 +133,10 @@ def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log
         b_data.to_csv(new_dir+f"/{project}_nor_bulk.txt",sep='\t')
         c_data.to_csv(new_dir+f"/{project}_nor_sc.txt",sep='\t')
 
-
-
     return sc_data,bulk_data
 
 def _plot_pca_scatter(bulk_adata, pseudo_bulk, out_dir):
+
     out_dir = utils.check_paths(f'{out_dir}/plots')
     # before batch effect
     before_x1 = get.count_data(bulk_adata)
@@ -143,19 +148,6 @@ def _plot_pca_scatter(bulk_adata, pseudo_bulk, out_dir):
     after_x2 = get.count_data(pseudo_bulk,counts_location="batch_effected")
     plots.scatter_2label(utils.pca(after_x1),utils.pca(after_x2),X1_label="input bulk", 
                         X2_label="reference bulk", title="after batch effect", out_dir=out_dir)
-
-def align(bulk_adata, pseudo_bulk,save):
-
-    def _compute_scale_factors(A,B):
-        
-        return bulk_adata
-    
-    A = pseudo_bulk.layers["batch_effected"]
-    B = pseudo_bulk.layers["cell_average_bulk"]
-    scale_factor =  _compute_scale_factors(A,B)
-    bulk_adata.layers["transformed"] = scale_factor*bulk_adata.layers["batch_effected"]
-    bulk_adata.var.scale_factor = scale_factor
-    return bulk_adata
 
 
 def preprocessing(bulk_data,
@@ -205,7 +197,7 @@ def preprocessing(bulk_data,
         The number of counts to normalize every observation to before computing profiles. If `None`, no normalization is performed. 
     trans_method: string, optional
         What transformation to apply to the expression before computing the profiles. 
-        - "log1p": log(x+1)
+        - "log": log(x+1)
         - `None`: no transformation
     save_figure: boolean, optional
         Whether save figures during preprocessing. eg. scatter plot of pca data.
@@ -292,11 +284,11 @@ def preprocessing(bulk_data,
         # remove batch effect between stimulated bulk rna and input bulk rna
         print('Start batch effect')
         pseudo_bulk, bulk_adata = remove_batch_effect(pseudo_adata, bulk_adata, out_dir=out_dir, project=dataset_name)
+        #save pca figure before and after batch effect.
         if save_figure:
             _plot_pca_scatter(bulk_adata, pseudo_bulk,out_dir)
         print('Done')
-        #cell_average_bulk = utils.compute_bulk_with_average_exp(pseudo_bulk, average_cell_exp, save=save, out_dir=out_dir, project=dataset_name)
-        #pseudo_bulk.layers["cell_average_bulk"] = cell_average_bulk
+
         if save:
             out_dir = utils.check_paths(f'{out_dir}/filtered')
             pseudo_bulk.write_h5ad(f"{out_dir}/pseudo_bulk_{dataset_name}.h5ad")

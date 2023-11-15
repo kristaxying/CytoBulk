@@ -373,7 +373,9 @@ class GraphDeconv:
         sc_adata=None,
         annotation_key = None,
         model_folder=None,
-        out_dir='./'):
+        out_dir='./',
+        project='',
+        save=True):
         
         utils.check_paths(output_folder=out_dir)
 
@@ -408,9 +410,10 @@ class GraphDeconv:
                 merged_ret = pd.concat([merged_ret, partial_ret])
 
             final_ret = pd.concat([final_ret, merged_ret], axis=1)
-        
+        final_ret = pd.DataFrame(final_ret,index=expression.index.tolist(),columns=tot_cell_list)
         # for debuging
-        final_ret.to_csv(f"{out_dir}/prediction_frac.csv", index=expression.index.tolist(), header=list(tot_cell_list))
+        if save:
+            final_ret.to_csv(f"{out_dir}/{project}_prediction_frac.csv")
         return final_ret
 
 

@@ -18,7 +18,7 @@ def get_sum(
     dtype=None,
 ):
 
-    """\
+    """
     Calculates the sum of a sparse matrix or array-like in a specified axis and
     returns a flattened result.
     
@@ -59,7 +59,7 @@ def log1p(
     X,
 ):
 
-    """\
+    """
     Calculates log1p inplace and in parallel.
     
     Parameters
@@ -85,7 +85,7 @@ def log1p(
 
 def pca(X,dimension=2):
     
-    """\
+    """
     Calculates decompositioned data  with 2 dimensions.
     
     Parameters
@@ -104,21 +104,43 @@ def pca(X,dimension=2):
 
     pca = PCA(n_components=dimension)
     new_data = pca.fit_transform(X.values)
-    new_data = pd.DataFrame(new_data, index=X.index, columns=['x','y'])
 
-    return new_data
+    return pd.DataFrame(
+        new_data,
+        index=X.index,
+        columns=[f'PCA{str(x)}' for x in range(1, dimension + 1)],
+    )
 
-def normalization_cpm(adata,scale_factors=None,trans_method=None):
+
+def normalization_cpm(adata,scale_factors=None,trans_method=None,layer=None):
+    """
+    Normalize counts per cell.
+
+    Parameters
+    ----------
+    scale_factors: int, optional
+        After normalization, each observation (cell) has a total count equal to the median 
+        of total counts for observations (cells) before normalization.
+    trans_method: None or 'log', optional
+        If log, Computes X=log(X+1), where log denotes the natural logarithm unless a different base is given.
+    layer:
+        
+    Returns
+    -------
+    Returns the expression after removing batch effect.
+    """
     data = adata.copy()
     if scale_factors is not None:
         sc.pp.normalize_total(data, target_sum=scale_factors)
-    if trans_method == 'log1p':
+    if trans_method == 'log':
         sc.pp.log1p(adata)
     return data
 
-def normal_center(data):
+def normal_center_df(data):
     scaler = StandardScaler()
-    return scaler.transform(data.values)
+    scaler.fit(data.values)
+    trans_data = scaler.transform(data.values)
+    return pd.DataFrame(trans_data,index=data.index,columns=data.columns)
 
     
 def pear(A,B):
