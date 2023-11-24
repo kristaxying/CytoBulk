@@ -16,6 +16,7 @@ import matplotlib.patches as mpatches
 class Const:
     """
     Some COLOR SET used in the class.
+    
     """
     DIFF_COLOR_2 = ['#F9B9B7','#61A0AF']
     #DIFF_COLOR_N = ['#005f73','#94d2bd','#e9d8a6','#fac748','#e76f51','#9b2226']

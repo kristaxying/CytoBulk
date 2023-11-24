@@ -22,12 +22,12 @@ def _check_cell_type(sc_adata,marker_data=None,cell_type_key="cell_type",cell_li
 
     Parameters
     ----------
-    marker_gene: dataframe
+    marker_gene : dataframe
         An :class:`~pandas.dataframe` marker gene in of each cell type.
         Each column is marker genes of one cell type. the first row should be name of cell types.
-    sc_adata: ~anndata.AnnData
+    sc_adata : ~anndata.AnnData
         An :class:`~anndata.AnnData` containing the sc rna expression to filter.
-    cell_type_key: string.
+    cell_type_key : string.
         The `.obs` key where the annotation is stored in sc adata.
 
     Returns
@@ -77,6 +77,7 @@ def _join_marker(sc_adata,annotation_key,marker_dict,common_cell,out_dir='./',da
     Returns
     -------
     Returns the marker gene dictionary from both database and auto-seeking.
+
     """
     
     if not exists(f'{out_dir}/{dataset_name}_marker.txt'):
@@ -118,6 +119,7 @@ def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log
     Returns
     -------
     Returns the normalizated bulk data (adata) and sc data (adata).
+
     """
 
     print("Start normalization")
@@ -206,6 +208,7 @@ def preprocessing(bulk_data,
     stimulated with cell average expression. adata.obsm["sti_fraction"] stores the ground truth fraction.
 
     The preprocessed sc data (adata), which has .obsm["marker_gene"] to stores marker gene of valid cell types.
+
     """
     if  annotation_key not in sc_adata.obs:
         raise ValueError(f'The key {annotation_key!r} is not available in .obs!')

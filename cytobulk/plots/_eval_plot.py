@@ -17,6 +17,7 @@ import matplotlib.patches as mpatches
 class Const:
     """
     Some COLOR SET used in the class.
+    
     """
     COLOR_BLUE = ['#191970','#ADD8E6','#22AAA1']
     DIFF_COLOR_GRAY = ['#474350','#FAFAC6']

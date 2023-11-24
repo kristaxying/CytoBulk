@@ -24,27 +24,28 @@ def _bulk_sc_deconv(bulk_adata,
 
     Parameters
     ----------
-    bulk_adata: anndata.AnnData
+    bulk_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the input bulk expression.
-    presudo_bulk: anndata.AnnData
+    presudo_bulk : anndata.AnnData
         An :class:`~anndata.AnnData` containing the stimulated bulk expression with single cell dataset.
-    sc_adata: anndata.AnnData
+    sc_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the single cell expression.
-    annotation_key: string
-        The `.obs` key where the single cell annotation is stored.: anndata.AnnData.
-    marker_data: 
+    annotation_key : string
+        The `.obs` key where the single cell annotation is stored. : anndata.AnnData.
+    marker_data : 
         An :class:`~pandas.dataframe` which columns are cell types, rows are marker gene.
-    dataset_name: string.
+    dataset_name : string.
         The prefix of output file.
-    counts_location: string.
+    counts_location : string.
         The layer name of the expression in presudo_bulk to train the model.
-    out_dir: string, optional
+    out_dir : string, optional
         The path to store the output data.
-    **kwargs: parameters in _filter_adata function.
+    **kwargs : parameters in _filter_adata function.
         
     Returns
     -------
     Returns the preprocessed bulk data (adata) , stimualted bulk data and sc data (adata).
+
     """
     start_t = time.perf_counter()
     deconv = model.GraphDeconv(mode="training")
@@ -98,39 +99,39 @@ def bulk_deconv(bulk_data,
 
     Parameters
     ----------
-    bulk_data: dataframe
+    bulk_data : dataframe
         An :class:`~pandas.dataframe` containing the bulk expression data. 
         The first column should be gene symbol, following column should be sample name.
-    sc_adata: anndata.AnnData
+    sc_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the single cell expression.
-    annotation_key: string
-        The `.obs` key where the single cell annotation is stored.: anndata.AnnData.
-    marker_data: 
+    annotation_key : string
+        The `.obs` key where the single cell annotation is stored. : anndata.AnnData.
+    marker_data : 
         An :class:`~pandas.dataframe` which columns are cell types, rows are marker gene.
-    dataset_name: string.
+    dataset_name : string.
         The prefix of output file.
-    out_dir: string, optional
+    out_dir : string, optional
         The path to store the output data.
-    different_source: boolean, optional
+    different_source : boolean, optional
         True for single cell and bulk data from the same sample, which means not executing batch effect.
         False for single cell and bulk data from the different samples, which means executing batch effect.
-    cell_list: list, optional
+    cell_list : list, optional
         The list indicate the cell type names which need to take into consideration.
-    scale_factors: int, optional
+    scale_factors : int, optional
         The number of counts to normalize every observation to before computing profiles. If `None`, no normalization is performed. 
-    trans_method: string, optional
+    trans_method : string, optional
         What transformation to apply to the expression before computing the profiles. 
-        - "log": log(x+1)
-        - `None`: no transformation
-    save: boolean, optional
+        - "log" : log(x+1)
+        - `None` : no transformation
+    save : boolean, optional
         Whether save the result data during each step. If saving, the processing may be skipped.
-    save_figure: boolean, optional
+    save_figure : boolean, optional
         Whether save figures during preprocessing. eg. scatter plot of pca data.
-    mapping_sc: boolean, optional
+    mapping_sc : boolean, optional
         Whether reconstruct the bulk data with single cell data.
-    n_cell: int, optional
+    n_cell : int, optional
         The number of cells within each bulk.
-    **kwargs: 
+    **kwargs : 
         Additional keyword arguments forwarded to
         :func:`~cytobulk.preprocessing.qc_bulk_sc`.
 

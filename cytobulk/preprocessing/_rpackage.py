@@ -22,18 +22,19 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
 
     Parameters
     ----------
-    raw_sc_adata: anndata.AnnData
+    raw_sc_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the raw expression.
-    annotation_key: string, optional
+    annotation_key : string, optional
         The `.obs` key where the single cell annotation is stored.: anndata.AnnData.
-    out_dir: string, optional
+    out_dir : string, optional
         The path to save the output file.
-    project: string, optional
+    project : string, optional
         The prefix of output file.
         
     Returns
     -------
     None
+
     """
     # save must be true
     save=True
@@ -59,18 +60,19 @@ def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project=''):
 
     Parameters
     ----------
-    pseudo_bulk: anndata.AnnData
+    pseudo_bulk : anndata.AnnData
         An :class:`~anndata.AnnData` containing the pseudo expression.
-    bulk_adata: anndata.AnnData
+    bulk_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the input expression.
-    out_dir: string, optional
+    out_dir : string, optional
         The path to save the output file.
-    project: string, optional
+    project : string, optional
         The prefix of output file.
         
     Returns
     -------
     Returns the expression after removing batch effect.
+
     """
     # save must be true
     save=True

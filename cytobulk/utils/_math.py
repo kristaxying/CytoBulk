@@ -4,7 +4,7 @@ from scipy.sparse import issparse, csr_matrix, csc_matrix
 from sklearn.utils.sparsefuncs import inplace_column_scale, inplace_row_scale
 from sklearn.preprocessing import StandardScaler
 import numba
-import mkl
+# import mkl
 from numba import njit, prange
 import anndata._core.views
 from sklearn.decomposition import PCA
@@ -128,6 +128,7 @@ def normalization_cpm(adata,scale_factors=None,trans_method=None,layer=None):
     Returns
     -------
     Returns the expression after removing batch effect.
+
     """
     data = adata.copy()
     if scale_factors is not None:

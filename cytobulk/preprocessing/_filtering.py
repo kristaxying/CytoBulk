@@ -200,6 +200,7 @@ def qc_bulk_sc(bulk_data,
     Returns
     -------
     Returns the filtered bulk data (adata) and sc data (adata).
+
     """
 
     project_sc = dataset_name+'_sc'
@@ -245,6 +246,7 @@ def qc_sc(sc_adata,**kwargs):
     Returns
     -------
     Returns the filtered sc data (adata).
+
     """
 
     if not isinstance(sc_adata,ad.AnnData):

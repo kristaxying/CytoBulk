@@ -5,7 +5,7 @@ def get_meta(
     adata,
     position_key,
 ):
-    """\
+    """
     Get an :class:`~pandas.DataFrame` with the positions of the observations.
     
     Parameters
