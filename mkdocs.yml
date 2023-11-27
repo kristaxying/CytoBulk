@@ -1,0 +1,72 @@
+site_name: CytoBulk's Docs
+
+theme:
+  name: "material"
+  logo: assets/logo_temp.png
+  favicon: assets/favicon_temp.png
+  features:
+    - search.suggest
+    - search.highlight
+    - search.share\
+    - navigation.footer
+  palette: 
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-sunny 
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      # primary: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra:
+  homepage: https://github.com/kristaxying/CytoBulk
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/kristaxying/CytoBulk
+
+copyright: Copyright &copy; 2023 WANG Xueying WANG Yian
+
+repo_url: https://github.com/kristaxying/CytoBulk
+repo_name: CytoBulk
+
+plugins:
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          docstring_style: numpy
+- search
+
+nav:
+- Home: index.md
+- API References:
+  - utils:
+    - _utils: ./utils/_utils.md
+    - _math: ./utils/_math.md
+    - _stimulation: ./utils/_stimulation.md
+    - _read_data: ./utils/_read_data.md
+    - _evaluation: ./utils/_evaluation.md
+  - tools:
+    - _deconv: ./tools/_deconv.md
+    - _mapping: ./tools/_mapping.md
+  - preprocessing:
+    - _filtering: ./preprocessing/_filtering.md
+    - _preprocessing: ./preprocessing/_preprocessing.md
+  - plots:
+    - _plot: ./plots/_plot.md
+  - get:
+    - _counts: ./get/_counts.md
+    - _meta: ./get/_meta.md
+- Examples: Examples.md
+- References: References.md

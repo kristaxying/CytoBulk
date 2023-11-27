@@ -1,10 +1,9 @@
-
 import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, csr_matrix, csc_matrix
 from sklearn.utils.sparsefuncs import inplace_column_scale, inplace_row_scale
 import numba
-import mkl
+# import mkl
 import sys
 import os
 import scipy.sparse
@@ -17,14 +16,14 @@ from ._read_data import check_paths
 
 def compute_cluster_averages(adata, annotation_key, common_cell,use_raw=False,project='',save=False,out_dir='./'):
     """
-    Compute average expression of each gene in each cluster
+    Compute average expression of each gene in each cluster.
 
     Parameters
     ----------
     adata
-        AnnData object of reference single-cell dataset
+        AnnData object of reference single-cell dataset.
     annotation_key
-        Name of adata.obs column containing cluster labels
+        Name of adata.obs column containing cluster labels.
     common_cell
         List to store the cell type order.
 
@@ -112,7 +111,7 @@ def data_dict_integration(data_df,data_dict,common_cell,top_num=100):
 
     Returns
     -------
-    pd.DataFrame of cell type average expression of each gene
+    pd.DataFrame of cell type average expression of each gene.
 
     """
     key_list = data_dict.keys()
@@ -128,7 +127,3 @@ def data_dict_integration(data_df,data_dict,common_cell,top_num=100):
             common_cell.remove(i)
     overlapping_gene = list(set(overlapping_gene))
     return data_dict, overlapping_gene, common_cell
-
-
-
-

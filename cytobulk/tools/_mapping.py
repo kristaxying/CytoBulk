@@ -89,6 +89,7 @@ def bulk_mapping(frac_data,
     Returns
     -------
     Returns the preprocessed bulk data (adata) , stimualted bulk data and sc data (adata).
+
     """
     
     start_t = time.perf_counter()

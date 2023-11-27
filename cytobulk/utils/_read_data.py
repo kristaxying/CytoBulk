@@ -17,14 +17,21 @@ def check_paths(output_folder,output_prefix=None):
     return output_path
 
 def read_file(file_path, file_label):
-    '''
+    """
     Read data with given path.
-    args:
-        file_path: file path.
-        file_label: the file label to raise exception.
-    return:
+
+    Parameters
+    ----------
+        file_path
+            file path.
+        file_label
+            the file label to raise exception.
+
+    Returns
+    -------
         the read file.
-    '''
+
+    """
     try:
         file_delim = "," if file_path.endswith(".csv") else "\t"
         with warnings.catch_warnings():

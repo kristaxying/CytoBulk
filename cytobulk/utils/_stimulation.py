@@ -19,15 +19,15 @@ def _get_stimulation(sc_data,meta_data,n_celltype,annotation_key,n_sample,n,roun
         
     Parameters
     ----------
-    sc_adata: anndata.AnnData
+    sc_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the expression to stimulating bulk expression.
-    n_celltype: int
+    n_celltype : int
         The cell type number used in stimulation.
-    annotation_key: string
+    annotation_key : string
         String to save sc cell type information.
-    n_sample: int
+    n_sample : int
         The numbers of samples will be stimulated.
-    n: int
+    n : int
         The number of cells included in each sample.
     round_th: int.
         The number to indicated the order of this round.
@@ -96,31 +96,31 @@ def bulk_simulation(sc_adata,
                     return_adata=True):
     
     """
-    Generation of bulk expression data with referenced sc adata.
-        Total stimultated number = n_sample_each_group*group_number\ 
+    Generation of bulk expression data with referenced sc adata. \  
+        Total stimultated number = n_sample_each_group*group_number \ 
         The number of cells in different groups should be: min_cells_each_group, 
                                                             min_cells_each_group+cell_gap_each_group, 
                                                             min_cells_each_group+2*cell_gap_each_group,
                                                             min_cells_each_group+group_number*cell_gap_each_group
     Parameters
     ----------
-    sc_adata: anndata.AnnData
+    sc_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the expression to stimulating bulk expression.
-    cell_list: list
+    cell_list : list
         The list of cell types for single cells, which will be used to generate simulated bulk data.
-    project: string, optional
+    project : string, optional
         The string used as the prefiex of the output file.
-    out_dir: string, optional
+    out_dir : string, optional
         The path to save the output files.
-    n_sample_each_group: int, optional
+    n_sample_each_group : int, optional
         The number of samples stimulated in each group.
-    min_cells_each_group: int, optional
+    min_cells_each_group : int, optional
         Minimum number of cells contained in the sample.
-    cell_gap_each_group: int, optional
+    cell_gap_each_group : int, optional
         The gap in the number of cells between groups.
-    group_number: int, optional
+    group_number : int, optional
         The group number.
-    rename_dict: dictionary, optional
+    rename_dict : dictionary, optional
         The dictionary to rename the cell types in sc adata.
     return_adata: 
         Return adata or dataframe.
@@ -128,6 +128,7 @@ def bulk_simulation(sc_adata,
     Returns
     -------
     Returns the stimulated bulk data and the corresponding cell type fraction.
+    
     """
 
     start_t = time.perf_counter()
@@ -221,23 +222,23 @@ def bulk_simulation_case(sc_adata,
                                                             min_cells_each_group+group_number*cell_gap_each_group
     Parameters
     ----------
-    sc_adata: anndata.AnnData
+    sc_adata : anndata.AnnData
         An :class:`~anndata.AnnData` containing the expression to stimulating bulk expression.
-    cell_list: list
+    cell_list : list
         The list of cell types for single cells, which will be used to generate simulated bulk data.
     project: string, optional
         The string used as the prefiex of the output file.
-    out_dir: string, optional
+    out_dir : string, optional
         The path to save the output files.
-    n_sample_each_group: int, optional
+    n_sample_each_group : int, optional
         The number of samples stimulated in each group.
-    min_cells_each_group: int, optional
+    min_cells_each_group : int, optional
         Minimum number of cells contained in the sample.
-    cell_gap_each_group: int, optional
+    cell_gap_each_group : int, optional
         The gap in the number of cells between groups.
-    group_number: int, optional
+    group_number : int, optional
         The group number.
-    rename_dict: dictionary, optional
+    rename_dict : dictionary, optional
         The dictionary to rename the cell types in sc adata.
     return_adata: 
         Return adata or dataframe.
@@ -245,6 +246,7 @@ def bulk_simulation_case(sc_adata,
     Returns
     -------
     Returns the stimulated bulk data and the corresponding cell type fraction.
+
     """
 
     start_t = time.perf_counter()
