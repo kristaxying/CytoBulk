@@ -91,7 +91,7 @@ def pca(X,dimension=2):
     Parameters
     ----------
     X
-        A :class:`~pd.dataframe` with more than 1 dimension.
+        A :class:`~pd.dataframe` with more than 2 dimension.
     dimension: int
         The number to indicate needed dimension.
 
@@ -134,7 +134,7 @@ def normalization_cpm(adata,scale_factors=None,trans_method=None,layer=None):
     if scale_factors is not None:
         sc.pp.normalize_total(data, target_sum=scale_factors)
     if trans_method == 'log':
-        sc.pp.log1p(adata)
+        sc.pp.log1p(data)
     return data
 
 def normal_center_df(data):

@@ -13,6 +13,7 @@ from numba import njit, prange
 from scipy.optimize import nnls
 import multiprocessing
 from ._read_data import check_paths
+import scanpy as sc
 
 def compute_cluster_averages(adata, annotation_key, common_cell,use_raw=False,project='',save=False,out_dir='./'):
     """
@@ -96,7 +97,7 @@ def compute_bulk_with_average_exp(pseudo_bulk, average_cell_exp,save=False,out_d
 
     return sample
 
-def data_dict_integration(data_df,data_dict,common_cell,top_num=100):
+def data_dict_integration(common_list,data_df,data_dict,common_cell,top_num=100):
     """
     Integration the dataframe and dict.
 
@@ -117,13 +118,131 @@ def data_dict_integration(data_df,data_dict,common_cell,top_num=100):
     key_list = data_dict.keys()
     overlapping_gene=[]
     for i in key_list:
+        # find marker gene name in each cell type
         tmp_index = data_df[i].sort_values().iloc[:top_num].keys()
-        common_index = np.union1d(np.array(tmp_index), np.array(data_dict[i]))
+        print(data_dict[i])
+        if data_dict[i]!=[]:
+            common_index = np.union1d(np.array(tmp_index), np.array(data_dict[i]))
+        else:
+            common_index = np.array(tmp_index)
+        common_index = np.intersect1d(np.array(common_list),common_index)
         if len(common_index)>0:
             data_dict[i] = list(common_index)
             overlapping_gene += data_dict[i]
         else:
             del data_dict[i]
             common_cell.remove(i)
-    overlapping_gene = list(set(overlapping_gene))
+    overlapping_gene = np.unique(np.array(overlapping_gene))
     return data_dict, overlapping_gene, common_cell
+
+def marker_integration(common_list,data_df,data_dict,common_cell,top_num=100):
+    """
+    Integration the dataframe and dict.
+
+    Parameters
+    ----------
+    data
+        Dataframe and the columns is the key.
+    dict
+        Dictionary with key and values.
+    top_number
+        The top highest value will be keeped.
+
+    Returns
+    -------
+    pd.DataFrame of cell type average expression of each gene.
+
+    """
+    key_list = data_dict.keys()
+    overlapping_gene=[]
+    data_df["row_quantile"] = data_df.quantile(0.65,axis=1)
+    data_df["mean"] = data_df.mean(axis=1)
+    for i in key_list:
+        # find marker gene name in each cell type
+        tmp_index = data_df.loc[data_df[i]>data_df["mean"]].index.tolist()
+        if len(tmp_index)!=0:
+            if len(data_dict[i])!=0:
+                common_index = np.union1d(np.array(tmp_index), np.array(data_dict[i]))
+            else:
+                common_index = np.array(tmp_index)
+        else:
+            common_index = np.array(data_dict[i])
+        common_index = np.intersect1d(np.array(common_list),common_index)
+        if len(common_index)>0:
+            data_dict[i] = list(common_index)
+            overlapping_gene += data_dict[i]
+        else:
+            del data_dict[i]
+            common_cell.remove(i)
+    overlapping_gene = np.unique(np.array(overlapping_gene))
+    return data_dict, overlapping_gene, common_cell
+
+
+def filter_samples(pseudo_bulk, bulk_adata,data_num,num=500,cut_off=0.9,loc=None):
+    from sklearn.metrics.pairwise import cosine_similarity
+    sample_name = pseudo_bulk.obs_names
+    if loc:
+        bulk_matrix = bulk_adata.layers[loc]
+        pseudo_matrix = pseudo_bulk.layers[loc]
+    else:
+        bulk_matrix = bulk_adata.X
+        pseudo_matrix = pseudo_bulk.X
+    #similarity_matrix = np.matmul(bulk_matrix,pseudo_matrix.T)
+    similarity_matrix = cosine_similarity(bulk_matrix,pseudo_matrix)
+    print(similarity_matrix.shape)
+    top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
+    selected_indices = np.unique(top_k_indices.flatten())
+    
+    while len(selected_indices)<10*similarity_matrix.shape[0]:
+          num=int(num*1.5)
+          top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
+          selected_indices = np.unique(top_k_indices.flatten())
+          print("samples")
+          print(len(selected_indices))
+    #cosin_mean = np.max(sample_cosine, axis=1)
+    #sample_index = np.argwhere(cosin_mean>cut_off)
+    #if len(sample_index)>data_num:
+        #sorted_index_array = np.argsort(cosin_mean)
+        #sorted_array = cosin_mean[sorted_index_array] 
+        #print(sorted_array[-data_num:][0])
+        #sample_index = np.argwhere(cosin_mean>=sorted_array[-data_num:][0])
+    '''
+    for i in range(pseudo_matrix.shape[0]):
+        sample_cor = np.dot(pseudo_matrix[i,:],bulk_matrix.T)
+        print(sample_cor)
+        if sample_cor.max()>=cut_off:
+            choose_index.append(sample_name[i])
+    '''
+    return sample_name[selected_indices]
+
+def compute_average_cosin(pseudo_bulk_tensor,bulk_adata,loc=None):
+    from sklearn.metrics.pairwise import cosine_similarity
+    valid_list=[]
+    for i in pseudo_bulk_tensor:
+        valid_list.append(i[0].numpy())
+    pseudo_matrix = np.array(valid_list)
+    if loc:
+        bulk_matrix = bulk_adata.layers[loc]
+    else:
+        bulk_matrix = bulk_adata.X
+    sample_cosine = cosine_similarity(pseudo_matrix,bulk_matrix)
+    cosin_max = np.mean(sample_cosine, axis=1)
+    return np.average(cosin_max)
+
+
+def filter_gene(expression,reference,out_dir,cell_type,save=True):
+    data_list=[expression,reference]
+    filtered_list=[]
+    for df in data_list:
+        print(df)
+        zero_count_per_column = (df == 0).sum(axis=0)
+        columns_to_keep = zero_count_per_column[zero_count_per_column <= (len(df) / 2)].index
+        df_filtered = df[columns_to_keep]
+        filtered_list.append(df_filtered)
+    common_columns = filtered_list[0].columns.intersection(filtered_list[1].columns)
+    if save==True:
+        reference_out_dir = check_paths(out_dir+'/test_data')
+        reference[common_columns].to_csv(reference_out_dir+f"/{cell_type}.txt",sep='\t')
+        
+
+    return expression[common_columns],reference[common_columns]

@@ -5,7 +5,8 @@ from .. import utils
 from .. import get
 from .. import plots
 from ._rpackage import find_marker_giotto,remove_batch_effect
-from ._filtering import qc_bulk_sc
+from ._filtering import qc_bulk_sc,qc_st_sc,high_variable_gene
+from sklearn.metrics.pairwise import cosine_similarity
 import warnings
 from os.path import exists
 import json
@@ -36,23 +37,22 @@ def _check_cell_type(sc_adata,marker_data=None,cell_type_key="cell_type",cell_li
     
     """
     sc_cells = np.unique(sc_adata.obs[cell_type_key])
-    if marker_data is not None and not isinstance(marker_data, pd.DataFrame):
-        marker_cells = marker_data.columns
-    else:
-        marker_cells = sc_cells
-
     if cell_list is not None:
         common_cell = np.intersect1d(np.array(cell_list), sc_cells, assume_unique=False, return_indices=False)
     else:
         common_cell = sc_cells
+
+    if marker_data is not None and not isinstance(marker_data, pd.DataFrame):
+        marker_cells = np.intersect1d(marker_data.columns, common_cell, assume_unique=False, return_indices=False)
+    else:
+        marker_cells = common_cell
+
     
-    common_marker = np.intersect1d(marker_cells, common_cell, assume_unique=False, return_indices=False)
-    
-    if len(marker_cells) != len(common_marker): # filter happened
+    if len(marker_cells) != len(common_cell): # filter happened
         warnings.warn("In marker gene profile, could not find all the cell type of sc adata. ")
     
     if marker_data is not None:
-        marker_gene = marker_data[common_marker].to_dict('list')
+        marker_gene = marker_data[marker_cells].to_dict('list')
     else:
         marker_gene = dict.fromkeys(common_cell)
 
@@ -61,7 +61,7 @@ def _check_cell_type(sc_adata,marker_data=None,cell_type_key="cell_type",cell_li
 
 
 
-def _join_marker(sc_adata,annotation_key,marker_dict,common_cell,out_dir='./',dataset_name=''):
+def _join_marker(bulk_adata,sc_adata,annotation_key,marker_dict,common_cell,out_dir='./',dataset_name=''):
     """
     join the auto find marker and database marker together.
 
@@ -88,10 +88,13 @@ def _join_marker(sc_adata,annotation_key,marker_dict,common_cell,out_dir='./',da
         print(f'Time to finish marker gene detection: {round(time.perf_counter() - start_t, 2)} seconds')
     else:
         print(f'{out_dir}/{dataset_name}_marker.txt already exists, skipping find marker.')
-        marker_gene = pd.read_csv(f"{out_dir}/{dataset_name}_marker.txt",sep='\t')
+    
+    marker_gene = pd.read_csv(f"{out_dir}/{dataset_name}_marker.txt",sep='\t')
+    common_gene = sc_adata.var_names.intersection(bulk_adata.var_names)
+    print(common_gene)
     
     
-    return utils.data_dict_integration(marker_gene,marker_dict,common_cell,top_num=100)
+    return utils.marker_integration(common_gene,marker_gene,marker_dict,list(common_cell),top_num=100)
 
 
 
@@ -137,22 +140,47 @@ def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log
 
     return sc_data,bulk_data
 
+def _filter_samples(pseudo_bulk, bulk_adata,cut_off=0.9):
+    sample_name = pseudo_bulk.obs_names
+    bulk_matrix = bulk_adata.layers["batch_effected"]
+    pseudo_matrix = pseudo_bulk.layers["batch_effected"]
+    sample_cosine = cosine_similarity(pseudo_matrix,bulk_matrix)
+    print(sample_cosine)
+    print(sample_cosine.shape)
+    cosin_max = np.max(sample_cosine, axis=1)
+    print(cosin_max)
+    sample_index = np.argwhere(cosin_max>0.85)
+    print(sample_name[sample_index[:,0]])
+    '''
+    for i in range(pseudo_matrix.shape[0]):
+        sample_cor = np.dot(pseudo_matrix[i,:],bulk_matrix.T)
+        print(sample_cor)
+        if sample_cor.max()>=cut_off:
+            choose_index.append(sample_name[i])
+    '''
+    return sample_name[sample_index[:,0]]
 
 
 
 def preprocessing(bulk_data,
                 sc_adata,
                 annotation_key,
+                is_st:False,
                 marker_data=None,
                 rename=None,
                 dataset_name="",
-                out_dir='./',
+                out_dir='.',
                 different_source=True,
                 cell_list=None,
                 scale_factors=10000,
                 trans_method="log",
                 save = True,
                 save_figure=True,
+                n_sample_each_group=500,
+                min_cells_each_group=100,
+                cell_gap_each_group=100,
+                group_number=5,
+                filter_samples=False,
                 **kwargs):
     """
     Preprocessing on bulk and sc adata, including following steps:\ 
@@ -220,74 +248,142 @@ def preprocessing(bulk_data,
         meta = sc_adata.obs
         meta['curated_cell_type'] = meta.apply(lambda x: rename[x[annotation_key]] if x[annotation_key] in rename else "invalid", axis=1)
         annotation_key = 'curated_cell_type'
+        sc_adata.obs=meta
         print("Finish renaming, the curated annotation could be found in sc_adata.obs['curated_cell_type']")
 
     print('================================================================================================================')
-    print('Start to check cell type annotation and quality control...')
+    print('------------------Start to check cell type annotation and quality control...------------------')
     sc_adata = sc_adata[sc_adata.obs[annotation_key]!="invalid",:]
-
-    sc_adata, bulk_adata, common_gene = qc_bulk_sc(bulk_data,sc_adata,save=save,**kwargs)
+    if is_st:
+        sc_adata, bulk_adata, common_gene = qc_st_sc(bulk_data,sc_adata,out_dir=out_dir,save=save,dataset_name=dataset_name,**kwargs)
+    else:
+        sc_adata, bulk_adata, common_gene = qc_bulk_sc(bulk_data,sc_adata,out_dir=out_dir,save=save,dataset_name=dataset_name,**kwargs)
 
     db_marker,common_cell = _check_cell_type(sc_adata,marker_data,annotation_key,cell_list)
-    print('Finish quality control.')
+    print('------------------Finish quality control------------------')
 
-    print('Start to find vaild marker genes')
-    if db_marker.values() is not None:
-        for i in db_marker.keys():
-            db_gene = np.array(db_marker[i])
-            tmp = np.intersect1d(db_gene,common_gene)
-            if len(db_marker) != len(tmp):
-                db_marker[i] = tmp
-
-    marker_dict,marker_gene,common_cell = _join_marker(sc_adata,annotation_key,db_marker,common_cell,out_dir,dataset_name)
-    # debug
-    print('Finish finding vaild marker genes')
-    sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(common_cell),marker_gene]
-    bulk_adata = bulk_adata[:,marker_gene]
-    print(f'The number of valid single cell is {sc_adata.shape[0]}, valid sample is {bulk_adata.shape[0]},the number of valid genes is {sc_adata.shape[1]}')
-    
     if scale_factors is not None or trans_method is not None:
         sc_adata.layers["original"] = sc_adata.X
         bulk_adata.layers["original"] = bulk_adata.X
         sc_adata, bulk_adata = _normalization_data(bulk_adata,sc_adata,scale_factors,trans_method,
-                                                save=save,project=dataset_name,out_dir=out_dir)
+                                                save=False,project=dataset_name,out_dir=out_dir)
+
+    # find informative genes.
+    cell_type_counts = sc_adata.obs[annotation_key].value_counts()
+    print("cell type after filtering:")
+    print(cell_type_counts)
+    if sc_adata.n_obs>30000:
+        print("start sampling")
+        cell_types = sc_adata.obs[annotation_key].unique()
+        sampled_indices = []
+        for cell_type in cell_types:
+            cell_type_indices = sc_adata.obs.index[sc_adata.obs[annotation_key] == cell_type].tolist()
+            n_samples = int(np.ceil(30000 * (len(cell_type_indices) / sc_adata.n_obs)))
+            if n_samples < len(cell_type_indices):
+                sampled_indices.extend(np.random.choice(cell_type_indices, n_samples, replace=False))
+            else:
+                sampled_indices.extend(cell_type_indices)
+
+        sc_adata = sc_adata[sampled_indices]
+        print("Finish")
+    print('------------------Start to find hvg------------------')
+    sc_adata = high_variable_gene(sc_adata,flavor='seurat')
+    print(f'The number of valid genes of sc data is {sc_adata.shape[1]}')
+    bulk_adata = high_variable_gene(bulk_adata,flavor='seurat')
+    print(f'The number of valid genes of bulk data is {sc_adata.shape[1]}')
+    print('------------------Finish------------------')
+    common_gene = sc_adata.var.index.intersection(bulk_adata.var.index)
+    # subset datasets
+    sc_adata = sc_adata[:,common_gene]
+    bulk_adata = bulk_adata[:,common_gene]
+    print('Start to find vaild marker genes')
+    if db_marker.values() is not None:
+        for i in db_marker.keys():
+            flag=False
+            if str(db_marker[i][0])!="nan":
+                flag=True
+            if not flag:
+                db_gene=[]
+            else:
+                db_gene = np.array(db_marker[i])
+            tmp = np.intersect1d(db_gene,common_gene)
+            if len(db_marker) != len(tmp):
+                db_marker[i] = tmp
+
+    marker_dict,marker_gene,common_cell = _join_marker(bulk_adata,sc_adata,annotation_key,db_marker,common_cell,out_dir,dataset_name)
+    # debug
+    print('Finish finding vaild marker genes')
+    #marker_gene = np.intersect1d(np.array(marker_gene), sc_adata.var_names, assume_unique=False, return_indices=False)
+    #bulk_adata = bulk_adata[:,marker_gene]
+    bulk_adata = bulk_adata[:,marker_gene]
+    sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(common_cell),marker_gene]
+    #sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(common_cell),marker_gene]
+    print(f'The number of valid single cell is {sc_adata.shape[0]}, valid sample is {bulk_adata.shape[0]},the number of valid genes is {sc_adata.shape[1]}')
+    
     print('================================================================================================================')
     
-    pseudo_adata = utils.bulk_simulation(sc_adata, 
-                    common_cell, 
-                    annotation_key = annotation_key,
-                    project=dataset_name, 
-                    out_dir=out_dir,
-                    n_sample_each_group=500,
-                    min_cells_each_group=100,
-                    cell_gap_each_group=100,
-                    group_number=5,
-                    save=True,
-                    return_adata=True)
-    if different_source:
-        print('================================================================================================================')
+    
+    
+    # training data simulation
+    
+
+    if is_st:
+        pseudo_adata = utils.st_simulation(sc_adata, 
+                common_cell, 
+                annotation_key = annotation_key,
+                project=dataset_name, 
+                out_dir=out_dir,
+                n_sample_each_group=n_sample_each_group,
+                min_cells_each_group=min_cells_each_group,
+                cell_gap_each_group=cell_gap_each_group,
+                group_number=group_number,
+                save=True,
+                return_adata=True)
+    else:
+        pseudo_adata = utils.bulk_simulation(sc_adata, 
+                        common_cell, 
+                        annotation_key = annotation_key,
+                        project=dataset_name, 
+                        out_dir=out_dir,
+                        n_sample_each_group=n_sample_each_group,
+                        min_cells_each_group=min_cells_each_group,
+                        cell_gap_each_group=cell_gap_each_group,
+                        group_number=group_number,
+                        save=True,
+                        return_adata=True)
+    #if different_source:
+        #print('================================================================================================================')
         # get cell type average expression.
-        print('Start data integration')
-        print('Compute average gene expression over different cell types with sc data')
+        #print('Start data integration')
+        #print('Compute average gene expression over different cell types with sc data')
         #average_cell_exp = utils.compute_cluster_averages(sc_adata,annotation_key,common_cell,
                                                         #out_dir=out_dir,project=dataset_name,save=True)
-        print('Done')
+        #print('Done')
         # remove batch effect between stimulated bulk rna and input bulk rna
-        print('Start batch effect')
-        pseudo_bulk, bulk_adata = remove_batch_effect(pseudo_adata, bulk_adata, out_dir=out_dir, project=dataset_name)
+        #print('Start batch effect')
+        #pseudo_bulk, bulk_adata = remove_batch_effect(pseudo_adata, bulk_adata, out_dir=out_dir, project=dataset_name)
         #save pca figure before and after batch effect.
+        '''
         if save_figure:
-            plots.batch_effect(bulk_adata, pseudo_bulk,out_dir)
+            plots.batch_effect(bulk_adata, pseudo_adata,out_dir=out_dir)
         print('Done')
+        
+        if filter_samples:
+            print("filtering samples")
+            sample_list = _filter_samples(pseudo_bulk, bulk_adata,cut_off=0.9)
+            pseudo_bulk = pseudo_bulk[sample_list,:]
+            print(pseudo_bulk.shape)
+            print("Done")
+            plots.batch_effect(bulk_adata, pseudo_bulk,out_dir=out_dir)
+        '''
+    if save:
+        out_dir = utils.check_paths(f'{out_dir}/filtered')
+        pseudo_adata.write_h5ad(f"{out_dir}/pseudo_bulk_{dataset_name}.h5ad")
+        sc_adata.write_h5ad(f"{out_dir}/sc_data_{dataset_name}.h5ad")
+        bulk_adata.write_h5ad(f"{out_dir}/bulk_data_{dataset_name}.h5ad")
+        with open(f"{out_dir}/marker_dict_{dataset_name}.json", "w") as outfile: 
+            json.dump(marker_dict, outfile)
 
-        if save:
-            out_dir = utils.check_paths(f'{out_dir}/filtered')
-            pseudo_bulk.write_h5ad(f"{out_dir}/pseudo_bulk_{dataset_name}.h5ad")
-            sc_adata.write_h5ad(f"{out_dir}/sc_data_{dataset_name}.h5ad")
-            bulk_adata.write_h5ad(f"{out_dir}/bulk_data_{dataset_name}.h5ad")
-            with open(f"{out_dir}/marker_dict.json", "w") as outfile: 
-                json.dump(marker_dict, outfile)
-
-    return sc_adata, pseudo_bulk, bulk_adata, marker_dict, annotation_key
+    return sc_adata, pseudo_adata, bulk_adata, marker_dict, annotation_key
 
     

@@ -2,22 +2,24 @@ import pandas as pd
 import anndata as ad
 import numpy as np
 import scanpy as sc
+from os.path import exists
 from scipy.sparse import issparse,csr_matrix
 from .. import utils
 import time
 
 
-
+#human_sc min_counts_per_cell=50 min_genes_per_cell=100
+#hnsc min_counts_per_cell=1 min_genes_per_cell=5
 def _filter_adata(
     adata,
     min_counts_per_gene=None,
-    min_counts_per_cell=5,
-    min_cells_per_gene=10,
-    min_genes_per_cell=30,
+    min_counts_per_cell=50,
+    min_cells_per_gene=100,
+    min_genes_per_cell=500,
     remove_constant_genes=True,
     remove_zero_cells=True,
     save=False,
-    out_dir='./',
+    out_dir='.',
     project='',
     ignore_duplicated_genes=True
     ):
@@ -47,6 +49,8 @@ def _filter_adata(
     Returns the filtered `adata`.
     
     """
+    print(min_counts_per_cell)
+    print(min_genes_per_cell)
     #check gene
     if not ignore_duplicated_genes:
         start_t = time.perf_counter()
@@ -132,6 +136,7 @@ def _filter_dataframe(
     remove_constant_genes=True,
     remove_zero_sample=True,
     project='',
+    out_dir='.',
     **kwargs
     ):
 
@@ -170,6 +175,7 @@ def _filter_dataframe(
                         remove_constant_genes=remove_constant_genes,
                         remove_zero_cells=remove_zero_sample,
                         project=project,
+                        out_dir=out_dir,
                         **kwargs)
     
     return adata
@@ -178,7 +184,71 @@ def qc_bulk_sc(bulk_data,
             sc_adata,
             min_counts_per_sample=100,
             min_genes_per_sample=100,
+            out_dir='.',
             dataset_name='',
+            **kwargs):
+    """
+    Quality control in bulk dataframe and sc adata.
+
+    Parameters
+    ----------
+    bulk_data: dataframe
+        An :class:`~pandas.dataframe` containing the bulk expression data. 
+        The first column should be gene symbol, following column should be sample name.
+    sc_adata: anndata.AnnData
+        An :class:`~anndata.AnnData` containing the expression to filter.
+    min_counts_per_sample: int, optional
+        The minimum count (per :class:`~pandas.dataframe`): samples must have to be kept.
+    min_genes_per_sample: int, optional
+        The minimum number of genes (per :class:`~pandas.dataframe`) samplse must have to be kept.
+    **kwargs:
+        Additional keyword arguments forwarded to
+        :func:`~cytobulk.preprocessing._filter_adata`.
+    Returns
+    -------
+    Returns the filtered bulk data (adata) and sc data (adata).
+
+    """
+    project_sc = dataset_name+'_sc'
+    project_bulk = dataset_name+'_bulk'
+    # check data format
+    if not isinstance(sc_adata,ad.AnnData):
+        raise ValueError(f"`A` can only be a dataframe but is a {sc_adata.__class__}!")
+    if not isinstance(bulk_data,pd.DataFrame):
+        raise ValueError(f"`A` can only be a anndata.AnnData but is a {bulk_data.__class__}!")
+    print("------------------start filtering bulk data-------------------------")
+    filtered_bulk = _filter_dataframe(bulk_data,
+                                    min_counts_per_sample=min_counts_per_sample,
+                                    min_genes_per_sample=min_genes_per_sample,
+                                    project = project_bulk,
+                                    out_dir=out_dir,
+                                    **kwargs)
+    print("------------------finish filtering bulk data-------------------------")
+
+    print("------------------start filtering single cell data-------------------------")
+    filtered_sc = _filter_adata(sc_adata,
+                                project = project_sc,
+                                out_dir=out_dir,
+                                **kwargs)
+    print("------------------finish filtering single cell data-------------------------")
+    # get overlapping gene between sc adata and bulk adata
+    common_gene = filtered_bulk.var.index.intersection(filtered_sc.var.index)
+    # subset datasets
+    filtered_sc = filtered_sc[:,common_gene]
+    filtered_bulk = filtered_bulk[:,common_gene]
+    print("finish getting overlapping genes")
+    return filtered_sc, filtered_bulk, common_gene
+
+def high_variable_gene(adata,flavor):
+    sc.pp.highly_variable_genes(adata, min_mean=0, max_mean=np.inf, min_disp=0.25,flavor=flavor)
+    return adata[:, adata.var.highly_variable]
+
+def qc_st_sc(st_adata,
+            sc_adata,
+            min_counts_per_sample=1,
+            min_genes_per_sample=5,
+            dataset_name='',
+            out_dir='.',
             **kwargs):
     """
     Quality control in bulk dataframe and sc adata.
@@ -204,33 +274,35 @@ def qc_bulk_sc(bulk_data,
     """
 
     project_sc = dataset_name+'_sc'
-    project_bulk = dataset_name+'_bulk'
+    project_st = dataset_name+'_st'
     # check data format
     if not isinstance(sc_adata,ad.AnnData):
         raise ValueError(f"`A` can only be a dataframe but is a {sc_adata.__class__}!")
-    if not isinstance(bulk_data,pd.DataFrame):
-        raise ValueError(f"`A` can only be a anndata.AnnData but is a {bulk_data.__class__}!")
-    print("------------------start filtering bulk data-------------------------")
-    filtered_bulk = _filter_dataframe(bulk_data,
-                                    min_counts_per_sample=min_counts_per_sample,
-                                    min_genes_per_sample=min_genes_per_sample,
-                                    project = project_bulk,
+    if not isinstance(st_adata,ad.AnnData):
+        raise ValueError(f"`A` can only be a anndata.AnnData but is a {st_adata.__class__}!")
+    print("------------------start filtering st data-------------------------")
+    filtered_st = _filter_adata(st_adata,
+                                    min_counts_per_cell=min_counts_per_sample,
+                                    min_genes_per_cell=min_genes_per_sample,
+                                    min_cells_per_gene=10,
+                                    project = project_st,
+                                    out_dir= out_dir,
                                     **kwargs)
-    print("------------------finish filtering bulk data-------------------------")
+    print("------------------finish filtering st data-------------------------")
 
     print("------------------start filtering single cell data-------------------------")
     filtered_sc = _filter_adata(sc_adata,
                                 project = project_sc,
+                                out_dir=out_dir,
                                 **kwargs)
     print("------------------finish filtering single cell data-------------------------")
     # get overlapping gene between sc adata and bulk adata
-    common_gene = filtered_bulk.var.index.intersection(filtered_sc.var.index)
+    common_gene = filtered_st.var.index.intersection(filtered_sc.var.index)
     # subset datasets
     filtered_sc = filtered_sc[:,common_gene]
-    filtered_bulk = filtered_bulk[:,common_gene]
-    print("finish getting overlapping genes")
-    return filtered_sc, filtered_bulk, common_gene
-
+    filtered_st = filtered_st[:,common_gene]
+    print(f"finish getting {len(common_gene)} overlapping genes")
+    return filtered_sc, filtered_st, common_gene
 
 def qc_sc(sc_adata,**kwargs):
     """

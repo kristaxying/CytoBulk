@@ -3,7 +3,8 @@ import anndata as ad
 
 def get_meta(
     adata,
-    position_key,
+    position_key="obs",
+    columns=None
 ):
     """
     Get an :class:`~pandas.DataFrame` with the positions of the observations.
@@ -25,7 +26,17 @@ def get_meta(
     """
     
     if position_key=="obs":
-        return adata.obs
-    
+        if not columns:
+            return adata.obs
+        else:
+            return adata.obs[columns]
 
 
+
+
+def get_coords(visium_adata):
+    df_coords = visium_adata.obs[['array_row', 'array_col']]
+    df_coords.columns = ['row','col']
+    df_coords.index.name = 'SpotID'
+
+    return df_coords

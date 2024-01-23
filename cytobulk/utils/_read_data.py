@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import warnings
 import pandas as pd
+import scanpy as sc
+import tarfile
 
 def check_paths(output_folder,output_prefix=None):
     # Create relative path
@@ -41,3 +43,7 @@ def read_file(file_path, file_label):
                     "The following input file formats are supported: .csv with comma ',' as "
                     "delimiter, .txt or .tsv with tab '\\t' as delimiter.")
     return file_data
+
+
+
+

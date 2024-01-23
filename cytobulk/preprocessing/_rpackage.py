@@ -4,10 +4,9 @@ import numpy as np
 import pandas as pd
 import time
 ## IF R path isn't set as system path, using followings to set the config.
-'''
+
 os.environ["R_HOME"] = "D:/R/R-4.3.1" 
 os.environ["PATH"] = "D:/R/R-4.3.1/bin/x64" + ";" + os.environ["R_HOME"] 
-'''
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from .. import utils
@@ -42,19 +41,34 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
     python_path = sys.executable
     # format expression data
     exp = get.count_data(sc_adata)
-    sc_anno = sc_adata.obs[anno_key]
+    print(exp)
+    sc_anno = pd.DataFrame(sc_adata.obs[anno_key])
+    sc_anno.index.name="cell"
+    print(sc_anno)
     # get r script path
     current_file_dir = os.path.dirname(__file__)
+
     robjects.r.source(current_file_dir+'/cytobulk_preprocessing.R')
+    try:
+        robjects.r.source(current_file_dir+'/cytobulk_preprocessing.R')
+        print("R script loaded successfully.")
+    except Exception as e:
+        print(f"An error occurred while sourcing the R script: {e}")
+    try:
+        run_giotto = robjects.r['run_giotto']
+        print("run_giotto function is loaded and ready to use.")
+    except KeyError:
+        print("run_giotto function is not found in the R environment.")
     # auto trans from pandas to r dataframe
     pandas2ri.activate()
-    robjects.r.run_giotto(exp,sc_anno,python_path,out_dir,project,robjects.vectors.BoolVector([save]))
+    robjects.r.run_giotto(exp,sc_anno,python_path,out_dir,project)
     # stop auto trans from pandas to r dataframe
     pandas2ri.deactivate()
 
 
 
-def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project=''):
+
+def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project='',batch_effect=True):
     """
     Remove batch effect between pseudo_bulk and input bulk data.
 
@@ -74,32 +88,46 @@ def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project=''):
     Returns the expression after removing batch effect.
 
     """
-    # save must be true
-    save=True
-    # check path, file will be stored in out_dir+'/batch_effect'
     out_dir = utils.check_paths(out_dir+'/batch_effect')
-    pseudo_bulk_df = get.count_data(pseudo_bulk)
-    input_bulk_df= get.count_data(bulk_adata)
-    bulk = pd.concat([pseudo_bulk_df,input_bulk_df], axis=1)
-    cells = np.append(pseudo_bulk.obs_names, bulk_adata.obs_names)
-    batch = np.append(np.ones((1,len(pseudo_bulk.obs_names))), np.ones((1,len(bulk_adata.obs_names)))+1)
-    if save:
-        bulk.to_csv(out_dir+f"/{project}_before_batch_effected.txt",sep='\t')
-    meta = pd.DataFrame({"batch": batch}, index=cells)
-    # get r script path
-    current_file_dir = os.path.dirname(__file__)
-    robjects.r.source(current_file_dir+'/cytobulk_preprocessing.R')
-    pandas2ri.activate()
-    result = robjects.r.run_combat(bulk, meta,out_dir, project)
-    # stop auto trans from pandas to r dataframe
-    pandas2ri.deactivate()
-    # add layer
-    if exists(f'{out_dir}/{project}_batch_effected.txt'):
-        bulk_data = pd.read_csv(f"{out_dir}/{project}_batch_effected.txt",sep='\t').T
+    if batch_effect:
+        if exists(f'{out_dir}/{project}_batch_effected.txt'):
+            print(f'{out_dir}/{project}_batch_effected.txt already exists, skipping batch effect.')
+            bulk_data = pd.read_csv(f"{out_dir}/{project}_batch_effected.txt",sep='\t').T
+            print(bulk_data.shape)
+        else:
+            
+            save=True
+            # check path, file will be stored in out_dir+'/batch_effect'
+            pseudo_bulk_df = get.count_data(pseudo_bulk)
+            input_bulk_df= get.count_data(bulk_adata)
+
+            bulk = pd.concat([pseudo_bulk_df,input_bulk_df], axis=1)
+
+            cells = np.append(pseudo_bulk.obs_names, bulk_adata.obs_names)
+            batch = np.append(np.ones((1,len(pseudo_bulk.obs_names))), np.ones((1,len(bulk_adata.obs_names)))+1)
+            if save:
+                bulk.to_csv(out_dir+f"/{project}_before_batch_effected.txt",sep='\t')
+            meta = pd.DataFrame({"batch": batch,"cells":cells})
+            # get r script path
+            current_file_dir = os.path.dirname(__file__)
+            robjects.r.source(current_file_dir+'/cytobulk_preprocessing.R')
+            pandas2ri.activate()
+            robjects.r.run_combat(bulk, meta, out_dir, project)
+            # stop auto trans from pandas to r dataframe
+            pandas2ri.deactivate()
+            # add layer
+            if exists(f'{out_dir}/{project}_batch_effected.txt'):
+                bulk_data = pd.read_csv(f"{out_dir}/{project}_batch_effected.txt",sep='\t').T
+                print(bulk_data.shape)
+            else:
+                raise ValueError('The batch_effected data is not available')
+        bulk_data.clip(lower=0,inplace=True)
+        pseudo_bulk.layers["batch_effected"] = bulk_data.loc[pseudo_bulk.obs_names,:].values
+        bulk_adata.layers["batch_effected"] = bulk_data.loc[bulk_adata.obs_names,:].values
     else:
-        raise ValueError('The batch_effected data is not available')
-    bulk_data.clip(lower=0,inplace=True)
-    pseudo_bulk.layers["batch_effected"] = bulk_data.loc[pseudo_bulk.obs_names,:].values
-    bulk_adata.layers["batch_effected"] = bulk_data.loc[bulk_adata.obs_names,:].values
+        pseudo_bulk_df = get.count_data(pseudo_bulk)
+        input_bulk_df= get.count_data(bulk_adata)
+        bulk = pd.concat([pseudo_bulk_df,input_bulk_df], axis=1)
+        bulk.to_csv(out_dir+f"/{project}_batch_effected.txt",sep='\t')
 
     return pseudo_bulk,bulk_adata

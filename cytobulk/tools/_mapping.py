@@ -9,6 +9,7 @@ from .. import utils
 import time
 from multiprocessing import Pool, cpu_count
 import numpy as np
+from ._cytospace import main_cytospace
 
 def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict, cellname_list, original_sc):
     """
@@ -182,3 +183,9 @@ def bulk_mapping(frac_data,
     return bulk_adata,sc_mapping_dict
 
 
+
+
+def st_mapping(st_adata,sc_adata,deconv_results,solution_method="cytospace"):
+    if solution_method=="cytospace":
+        main_cytospace(st_adata,sc_adata,deconv_results)
+    return 

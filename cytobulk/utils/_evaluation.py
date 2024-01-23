@@ -27,6 +27,7 @@ def eval_fraction(df1,df2,out_dir=',',save=True):
         pval,stat = _p_value(data1,data2)
         cells.append(cell_name[j])
         sig.append(float(stat))
+        str_pval='none'
         if pval <=0.001:
             str_pval = '***'
         elif 0.001<pval<=0.01:
@@ -63,14 +64,15 @@ def eval_comparsion(df1,df2_list,method_name,out_dir=',',save=True):
             sig.append(float(stat))
             methods.append(method_name[i])
             if pval <=0.001:
-                str_pval = '***'
+                p_value.append('***')
             elif 0.001<pval<=0.01:
-                str_pval = '**'
+                p_value.append('**')
             elif 0.01<pval<=0.05:
-                str_pval = '*'
+                p_value.append('*')
             elif str(pval)=="nan":
-                str_pval = 'X'
-            p_value.append(str_pval)
+                p_value.append('X')
+            else:
+                p_value.append('X')
             mse.append(mse_tmp)
     dict_data = {"cell type":cells,"method":methods,"person correlation":sig,"p_value":p_value,"mse":mse}
     eval_result = pd.DataFrame(dict_data)
