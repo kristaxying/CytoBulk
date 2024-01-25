@@ -59,3 +59,23 @@ def predict_cell_num(img_path,
     return ret
 
 
+def img_segmentation(image_path, st_data_path):
+    '''_summary_
+
+    Parameters
+    ----------
+    image_path : _type_
+        _description_
+    st_data : _type_
+        _description_
+    '''
+    ret_path = 'output/segmentation'
+    ret = predict_cell_num(
+        # './data/images/ST_BC23209_C2.jpg', 
+        # './data/spots/ST_spots_BC23209_C2.csv.gz', 
+        image_path,
+        st_data_path,
+        224,
+        f'{ret_path}/results.jpg'
+    )
+    ret.to_csv(f'{ret_path}/results.csv', index=False)
