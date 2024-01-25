@@ -13,7 +13,7 @@ For testing the CytoBulk class, you may refer the test.py file.
 
 - please setup git modules before using this repo:
 ```bash
-
+git submodule update --init --recursive
 ```
 
 - to check the doc, run
