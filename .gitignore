@@ -27,6 +27,3 @@ data/
 
 # logs
 *.out
-
-# submodules
-**/submodules/
