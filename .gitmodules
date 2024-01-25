@@ -1,0 +1,3 @@
+[submodule "cellpose"] # use submodule but not pip since there are problems with installation under macos.
+	path = cellpose
+	url = https://github.com/MouseLand/cellpose.git
