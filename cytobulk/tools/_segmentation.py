@@ -1,8 +1,7 @@
-#from cellpose.cellpose import models, io
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-#from cellpose.cellpose import plot
+from cellpose.cellpose import models, io, plot
 from tqdm import tqdm
 
 
