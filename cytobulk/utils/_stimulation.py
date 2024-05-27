@@ -129,8 +129,7 @@ def _get_prop_specific_sti(sc_data,meta_data,n_celltype,cell_specific,annotation
 
     """
     cell_prop = np.random.dirichlet(np.ones(n_celltype), n_sample)
-    print("0")
-    print(cell_prop)
+
     #cell_prop[cell_prop < 1/n_celltype] = 0
 
     meta_index = meta_data[[annotation_key]]
@@ -494,9 +493,12 @@ def st_simulation(sc_adata,
             for cell_name in cell_prop.keys():
                 cell_prop[cell_name] = cell_prop[cell_name]/st_data.shape[0]
             selected_index = np.argsort(-similarity_matrix, axis=1)[:, :6]
-            selected_sim_index = np.unique(np.argsort(-similarity_matrix, axis=1)[:, 6].flatten())
+            selected_sim_index = np.unique(np.argsort(-similarity_matrix, axis=1)[:,:6].flatten())
             rare_cell_list = np.setdiff1d(selected_sim_index,most_sim_index,False)
             print(cell_prop)
+            all_cells_names = np.array(average_cell_exp.index.tolist())[selected_sim_index]
+            print(all_cells_names)
+            print(np.array(average_cell_exp.index.tolist())[rare_cell_list])
             sample_cell_composition =  dict(enumerate(selected_index))
             for i in range(group_number):
                 for j in range(st_data.shape[0]):
@@ -526,8 +528,9 @@ def st_simulation(sc_adata,
                     #if len(np.intersect1d(rare_cell_list,np.array(selected_celltype)))>0:
                 for rare_cell in rare_cell_list:
                     cells = np.array(average_cell_exp.index.tolist())[rare_cell]
-                    ref_data,ref_prop = _get_prop_specific_sti(sc_data,
+                    ref_data,ref_prop = _get_prop_sample_sti(sc_data,
                                         sub_sc_adata.obs,
+                                        selected_sim_index,
                                         n_celltype,
                                         cells,
                                         annotation_key,
@@ -540,8 +543,9 @@ def st_simulation(sc_adata,
                     new_prop.append(ref_prop)
                 for cell_keys in cell_prop.keys():
                     if cell_prop[cell_keys]<0.02:
-                        ref_data,ref_prop = _get_prop_specific_sti(sc_data,
+                        ref_data,ref_prop = _get_prop_sample_sti(sc_data,
                                         sub_sc_adata.obs,
+                                        selected_sim_index,
                                         n_celltype,
                                         cell_keys,
                                         annotation_key,
@@ -561,6 +565,8 @@ def st_simulation(sc_adata,
             ref_prop = pd.DataFrame(ref_prop.values,
                         index=[f'Sample{str(i)}_{project}' for i in range(ref_data.shape[0])],
                         columns=ref_prop.columns)
+            nonzero_columns = ref_prop.any()
+            ref_prop = ref_prop.loc[:, nonzero_columns]
             
         '''
             from sklearn.metrics.pairwise import cosine_similarity
