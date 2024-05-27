@@ -24,9 +24,6 @@ data/
 
 # ignore .ipynb which is not directly under root
 */*.ipynb
-draft/
 
 # logs
 *.out
-
-config/

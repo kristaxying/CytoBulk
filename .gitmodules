@@ -1,5 +1,0 @@
-[submodule "cellpose"] 
-# use submodule but not pip since there are problems with installation under osx.
-# for win/linux, please use pip: pip install cellpose
-	path = ./tools/model/cellpose/
-	url = https://github.com/MouseLand/cellpose.git
