@@ -96,10 +96,15 @@ class GraphConv(nn.Module):
         lam, u = np.linalg.eig(L)
         lam = torch.FloatTensor(lam)
         lam = lam.to(self.device)
+        #lam= torch.diag(lam)
+        torch.set_printoptions(precision=3,sci_mode=False)
+        q1 = np.percentile(lam,50)
+
+        lam[lam<q1]=0
+        #print(lam)
         lam= torch.diag(lam)
         u = torch.FloatTensor(u).to(self.device)
         lam = 2*((lam - torch.min(lam).to(self.device)) / (torch.max(lam).to(self.device) - torch.min(lam).to(self.device))) - torch.eye(lam.size(0)).to(self.device)
-        
         mul_L = self.cheb_polynomial(lam).unsqueeze(1)
 
         if mode == 0:
@@ -209,14 +214,15 @@ class InferDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-def get_G(cell_name, sel_gene, sc_adata,annotation_key):
+def get_G(cell_name, sc_adata,annotation_key):
         def _get_mat_YW(sc_df):
             mat_Y = torch.FloatTensor(sc_df.values)
             mat_W = mat_Y @ mat_Y.t()
             return mat_W
 
         sec_num = 1e-20
-        sub_adata = sc_adata[sc_adata.obs[annotation_key]==cell_name,sel_gene].copy()
+        #sub_adata = sc_adata[sc_adata.obs[annotation_key]==cell_name,sel_gene].copy()
+        sub_adata = sc_adata[sc_adata.obs[annotation_key]==cell_name,].copy()
         sub_df = get.count_data(sub_adata)
         mat_W = _get_mat_YW(sub_df)
         num = len(mat_W)
@@ -231,8 +237,8 @@ def select_gene(expression: pd.DataFrame, sel_gene: list):
     return ret_exp.iloc[:, 1:]
 
 def train_cell_loop_once(cell, 
-                        marker,
-                        presudo_bulk,
+                        expression,
+                        fraction,
                         bulk_adata,
                         batch_size,
                         sc_adata,
@@ -241,49 +247,49 @@ def train_cell_loop_once(cell,
                         annotation_key,
                         project_name,
                         data_num,
-                        batch_effect,
+                        loc,
                         is_st):
 
     if exists(f'{out_dir}/graph_{cell}.pt') and exists(f'{out_dir}/linear_{cell}.pt'):
-        print(f"skipping trainning model for {cell}")
+        print(f"skipping training model for {cell}")
     else:
         if is_st:
             meet_req = Const.MAX_RETRY
         else:
             meet_req = 1
-        print("filtering samples")
-        sel_gene = marker[cell]
-        presudo_bulk_full = presudo_bulk[:,sel_gene].copy()
-        bulk_adata_full = bulk_adata[:,sel_gene].copy()
-        presudo_bulk_full, bulk_adata_full = preprocessing.remove_batch_effect(presudo_bulk_full, bulk_adata_full, out_dir=out_dir, project=project_name+"_"+cell,batch_effect=batch_effect)
+        print(f"training model for {cell}")
+        #sel_gene = marker[cell]
+        #presudo_bulk_full = presudo_bulk[:,sel_gene].copy()
+        #bulk_adata_full = bulk_adata[:,sel_gene].copy()
+        #presudo_bulk_full = presudo_bulk.copy()
+        bulk_adata_full = bulk_adata.copy()
+        #presudo_bulk_full, bulk_adata_full = preprocessing.remove_batch_effect(presudo_bulk_full, bulk_adata_full, out_dir=out_dir, project=project_name+"_"+cell,batch_effect=batch_effect)
 
-        if batch_effect:
-            loc="batch_effected"
-        else:
-            loc=None
-        sample_num = 0
-        cut_off=0.975
+        #if batch_effect:
+            #loc="batch_effected"
+        #else:
+            # loc=None
+        #cut_off=0.975
         
-        while (sample_num<data_num and cut_off>0.8):
-            sample_list = utils.filter_samples(presudo_bulk_full, bulk_adata_full,data_num=data_num,cut_off=cut_off,loc=loc)
-            sample_num=len(sample_list)
-            cut_off -= 0.025
-        presudo_bulk_train = presudo_bulk_full[sample_list,:]
-        print(presudo_bulk_train.shape)
-        expression = get.count_data_t(presudo_bulk_train,counts_location=loc)
+
+        #sample_list = utils.filter_samples(presudo_bulk_full, bulk_adata_full,data_num=data_num,cut_off=cut_off,loc=loc)
+
+        #presudo_bulk_train = presudo_bulk_full[sample_list,:]
+        #print(presudo_bulk_train.shape)
+        #expression = get.count_data_t(presudo_bulk_train,counts_location=loc)
         #reference = get.count_data_t(bulk_adata_full,counts_location=loc)
-        fraction = get.meta(presudo_bulk_train,position_key="obs")
-        print("batch_effect",batch_effect)
-        if batch_effect:
-            plots.batch_effect(bulk_adata_full, presudo_bulk_train,out_dir=out_dir+"/plot",title=cell)
-        print(f"Start training the model for {cell} cell type...")
-        sel_gene = expression.columns
-        mat_G, num = get_G(cell, sel_gene, sc_adata,annotation_key)
+        #fraction = get.meta(presudo_bulk_train,position_key="obs")
+        #print("batch_effect",batch_effect)
+        #if batch_effect:
+            #plots.batch_effect(bulk_adata_full, presudo_bulk_train,out_dir=out_dir+"/plot",title=cell)
+        #print(f"Start training the model for {cell} cell type...")
+        #sel_gene = expression.columns
+        mat_G, num = get_G(cell, sc_adata,annotation_key)
         mat_G = mat_G.to(device)
-        input_bulk = expression[sel_gene]
-        bulk_adata_full = bulk_adata_full[:,sel_gene]
+        #input_bulk = expression[sel_gene]
+        #bulk_adata_full = bulk_adata_full[:,sel_gene]
         #select_gene(expression, sel_gene)
-        train_data = input_bulk.values
+        train_data = expression.values
         train_label = fraction[cell].values
         full_dataset = torch.utils.data.TensorDataset(torch.FloatTensor(train_data), torch.FloatTensor(train_label))
         train_size = int(batch_size * (0.85 * len(full_dataset) // batch_size))
@@ -298,17 +304,17 @@ def train_cell_loop_once(cell,
             else:
                 _dataset, _valid = torch.utils.data.random_split(full_dataset, [train_size, valid_size])
                 _cosin = utils.compute_average_cosin(_valid,bulk_adata_full,loc=loc)
-                print("now",_cosin)
                 if _cosin > best_cosin:
                     train_dataset = _dataset
                     valid_dataset = _valid
                     best_cosin = _cosin
-                    print("best",best_cosin)
         train_loader = torch.utils.data.DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
         valid_loader = torch.utils.data.DataLoader(dataset = valid_dataset, batch_size = 1, shuffle = False)
-        while meet_req:
-            print("training model")
+        max_retry=5
+        while meet_req>0 and max_retry>0:
             meet_req -= 1
+            max_retry -= 1
+            smooth_times=0
 
             if not is_st:
                 model_graph = GraphNet_bulk(num,num,num,2, device=device).to(device)
@@ -321,7 +327,7 @@ def train_cell_loop_once(cell,
             model_linear_schelr = torch.optim.lr_scheduler.StepLR(model_linear_optim, 5, gamma=0.9)
 
             plot_info_dict = {"mse_loss": []}
-            if meet_req == Const.MAX_RETRY - 1: 
+            if max_retry == 4: 
                 pre_pearson_r = -np.inf
                 pre_loss = np.inf
                 model_r = pre_pearson_r
@@ -333,7 +339,7 @@ def train_cell_loop_once(cell,
             if is_st:
                 epoch_num = Const.EPOCH_NUM_ST
             else:
-                epoch_num = Const.EPOCH_NUM_BLUK
+                epoch_num = Const.EPOCH_NUM_BULK
             for epo in range(epoch_num):
                 model_graph.train(); model_linear.train()
                 for _, (data, target) in enumerate(train_loader):
@@ -369,7 +375,7 @@ def train_cell_loop_once(cell,
                         valid_cor_dict["frac_truth"].append(target.cpu().detach().clone().numpy().item())
                     
                     pearson_r, pearson_p = pearsonr(valid_cor_dict["frac_pred"], valid_cor_dict["frac_truth"])
-                    if epo==0 and meet_req == Const.MAX_RETRY - 1:
+                    if epo==0 and max_retry == 4:
                         pre_loss = loss_f
                         pre_pearson_r = pearson_r
                         model_r = pearson_r
@@ -384,27 +390,32 @@ def train_cell_loop_once(cell,
                                 best_graph = model_graph.state_dict()
                                 best_linear = model_linear.state_dict()
                         else:
-                            if (pearson_r >= model_r and model_loss > loss_f-0.002) or (model_r<0):
+                            if (pearson_r >= model_r and model_loss > loss_f-0.004) or (model_r<0):
                                 model_loss = loss_f
                                 model_r = pearson_r
                                 best_graph = model_graph.state_dict()
                                 best_linear = model_linear.state_dict()
                             #print(f"pearson_r = {model_r}...epo={epo}", end=" ")
+                    if (abs(pre_pearson_r-pearson_r)>0.002) and (smooth_times==1):
+                        smooth_times=0
+                    if (abs(pre_pearson_r-pearson_r)<=0.002):
+                        smooth_times+=1
+                    
                     if is_st:
                         if not graph_break and epo>0:
-                            if (pearson_r> 0.98 and epo<=9) or (abs(pre_pearson_r-pearson_r)<0.002):
+                            if (pearson_r> 0.98 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0001)
                                 print("stop graph training,linear training--0.0001")
-                            elif (pearson_r> 0.95 and epo>3 and epo<=9) or (abs(pre_pearson_r-pearson_r)<0.002):
+                            elif (pearson_r> 0.95 and epo>3 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0001)
                                 print("stop graph training,linear training--0.0001")
-                            elif (pearson_r> 0.85 and epo>5 and epo<=9) or (abs(pre_pearson_r-pearson_r)<0.002):
+                            elif (pearson_r> 0.85 and epo>5 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0001)
                                 print("graph training--0.0005,linear training--0.0015")
-                            elif (pearson_r> 0.75 and epo>7 and epo<=9) or (abs(pre_pearson_r-pearson_r)<0.002):
+                            elif (pearson_r> 0.75 and epo>7 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0001)
                                 print("graph training--0.0005,linear training--0.0015")
@@ -444,7 +455,6 @@ def train_cell_loop_once(cell,
                                 print("epo>15,graph training break,linear training--0.0005")
                         elif graph_break and epo>1:
                             if not linear_stop:
-                                if loss_f < 0.001:
                                     if loss_f < 0.001 and loss_f > 0.0005:
                                         change_lr(model_linear_optim, 0.0005)
                                         print("change linear training--0.0005")
@@ -470,40 +480,10 @@ def train_cell_loop_once(cell,
             torch.save(best_graph, f"{out_dir}/graph_{cell}.pt")
             torch.save(best_linear, f"{out_dir}/linear_{cell}.pt")
             print("Done.")
-
-    sel_gene = marker[cell]
-    mat_G, num = get_G(cell, sel_gene, sc_adata,annotation_key)
-    mat_G = mat_G.to(device)
-    #input_bulk = expression[sel_gene]
-    input_bulk = pd.read_csv(f"{out_dir}/batch_effect/{project_name}_{cell}_batch_effected.txt",sep='\t',index_col=0)[bulk_adata.obs_names.tolist()]
-
-    input_bulk.clip(lower=0,inplace=True)
-    #input_bulk = input_bulk.T
-    #test_data = input_bulk[sel_gene].values
-    test_data = input_bulk.T.values
-    test_dataset = InferDataset(torch.FloatTensor(test_data))
-    test_loader = torch.utils.data.DataLoader(dataset = test_dataset, batch_size = 1, shuffle = False)
-    if not is_st:
-        model_graph = GraphNet_bulk(num,num,num,2, device=device).to(device)
-    else:
-        model_graph = GraphNet_st(num,num,num,2, device=device).to(device)
-    model_graph.load_state_dict(torch.load(f'{out_dir}/graph_{cell}.pt'))
-    model_linear = LinearModel(num).to(device)
-    model_linear.load_state_dict(torch.load(f'{out_dir}/linear_{cell}.pt'))
-    model_graph.eval(); model_linear.eval()
-    valid=bulk_adata.obs
-    valid_cor=[]
-    for _, data in enumerate(test_loader):            
-        data = data.to(torch.float32).to(device)
-        zlist=torch.reshape(model_graph(mat_G, data), (1, -1))      
-        output_frac = model_linear(zlist)
-        valid_cor.append(output_frac.cpu().detach().clone().numpy().item())
-    print(valid[cell].values.shape)
-    pearson_r, pearson_p = pearsonr(valid_cor, valid[cell].values)
-    loss_f = ((valid_cor-valid[cell].values)**2).mean()
-    print(loss_f)
-    print(pearson_r)
+            if model_r <0.90:
+                meet_req+=1
     
+            
 class GraphDeconv:
     def __init__(
             self,
@@ -523,7 +503,7 @@ class GraphDeconv:
     def fit(
         self,
         expression,
-        marker=None,
+        cell_list=None,
         sc_adata=None,
         annotation_key = None,
         model_folder=None,
@@ -534,16 +514,14 @@ class GraphDeconv:
         is_st=False):
         
         utils.check_paths(output_folder=out_dir)
-        print(expression.obs_names)
         device=self.device
-        tot_cell_list = marker.keys()
+        tot_cell_list = cell_list
         final_ret = pd.DataFrame()
         for cell in tqdm(tot_cell_list, leave=False):
-            sel_gene = marker[cell]
-            mat_G, num = get_G(cell, sel_gene, sc_adata,annotation_key)
+            mat_G, num = get_G(cell, sc_adata,annotation_key)
             mat_G = mat_G.to(device)
             #input_bulk = expression[sel_gene]
-            input_bulk = pd.read_csv(f"{file_dir}/batch_effect/{project}_{cell}_batch_effected.txt",sep='\t',index_col=0)[expression.obs_names.tolist()]
+            input_bulk = pd.read_csv(f"{file_dir}/batch_effect/{project}_batch_effected.txt",sep='\t',index_col=0)[expression.obs_names.tolist()]
 
             input_bulk.clip(lower=0,inplace=True)
             #input_bulk = input_bulk.T
@@ -558,11 +536,11 @@ class GraphDeconv:
                 model_graph = GraphNet_bulk(num,num,num,2, device=device).to(device)
             else:
                 model_graph = GraphNet_st(num,num,num,2, device=device).to(device)
+            
             model_graph.load_state_dict(torch.load(f'{model_folder}/graph_{cell}.pt'))
             model_linear = LinearModel(num).to(self.device)
             model_linear.load_state_dict(torch.load(f'{model_folder}/linear_{cell}.pt'))
             model_graph.eval(); model_linear.eval()
-
             merged_ret = pd.DataFrame()
             for _, data in enumerate(test_loader):            
                 data = data.to(torch.float32).to(self.device)
@@ -585,13 +563,13 @@ class GraphDeconv:
         self,
         presudo_bulk=None,
         bulk_adata=None,
-        marker=None,
+        cell_list=None,
         sc_adata=None,
         annotation_key = None,
         batch_size = Const.BATCH_SIZE,
         out_dir = "./",
         project_name="",
-        data_num=5000,
+        data_num=10000,
         batch_effect=True,
         is_st=False
     ):
@@ -615,52 +593,28 @@ class GraphDeconv:
             raise ValueError(f"Please check the input, the shape of the expression file {expression.shape} \
                             does not match the one of fraction {fraction.shape}.")
         '''
-        tot_cell_list = marker.keys()
+        tot_cell_list = cell_list
+        presudo_bulk_full = presudo_bulk.copy()
+        bulk_adata_full = bulk_adata.copy()
+        presudo_bulk_full, bulk_adata_full = preprocessing.remove_batch_effect(presudo_bulk_full, bulk_adata_full, out_dir=out_dir, project=project_name,batch_effect=batch_effect)
 
+        if batch_effect:
+            loc="batch_effected"
+            plots.batch_effect(bulk_adata_full, presudo_bulk_full,out_dir=out_dir+"/plot",title=project_name)
+        else:
+            loc=None
+        
+        sample_list = utils.filter_samples(presudo_bulk_full, bulk_adata_full,data_num=data_num,loc=loc)
+
+        presudo_bulk_train = presudo_bulk_full[sample_list,:]
+
+        expression = get.count_data_t(presudo_bulk_train,counts_location=loc)
+        #reference = get.count_data_t(bulk_adata_full,counts_location=loc)
+        fraction = get.meta(presudo_bulk_train,position_key="obs")
         if torch.backends.mps.is_available():
             for cell in tot_cell_list:
-                train_cell_loop_once(cell, marker, presudo_bulk, bulk_adata, batch_size, sc_adata, out_dir, self.device,annotation_key,project_name,data_num,batch_effect,is_st)
+                train_cell_loop_once(cell, expression, fraction,bulk_adata_full, batch_size, sc_adata, out_dir, self.device,annotation_key,project_name,data_num,loc,is_st)
         else:
             for cell in tot_cell_list:
-                train_cell_loop_once(cell, marker, presudo_bulk, bulk_adata, batch_size, sc_adata, out_dir, self.device,annotation_key,project_name,data_num,batch_effect,is_st)
+                train_cell_loop_once(cell, expression, fraction, bulk_adata_full, batch_size, sc_adata, out_dir, self.device,annotation_key,project_name,data_num,loc,is_st)
             
-    '''
-    def train(
-        self,
-        expression=None,
-        fraction=None,
-        marker=None,
-        sc_adata=None,
-        annotation_key = None,
-        batch_size = Const.BATCH_SIZE,
-        out_dir = "./",
-        is_st=False
-    ):
-        """
-        out_dir: string, the directory for saving trained models.
-        expression: string, needed if `mode` is `training`, the path of the bulk expression file.
-        fraction: string, needed if `mode` is `training`, the path of the bulk fraction file.
-        marker: string, needed if `mode` is `training`, the path of the gene marker file.
-        sc_folder: string, needed if `mode` is `training`, the path of the folder containing single cell reference.
-        """
-        
-        # checking
-        if self.mode != Const.MODE_TRAINING:
-            raise ValueError("This function can only be used under training mode.")
-        
-        utils.check_paths(output_folder=out_dir)
-        utils.check_paths(output_folder=out_dir+"./plot")
-
-        if expression.shape[0] != fraction.shape[0]:
-            raise ValueError(f"Please check the input, the shape of the expression file {expression.shape} \
-                            does not match the one of fraction {fraction.shape}.")
-        
-        tot_cell_list = marker.keys()
-
-        if torch.backends.mps.is_available():
-            for cell in tot_cell_list:
-                train_cell_loop_once(cell, marker, expression, fraction, batch_size, sc_adata, out_dir, self.device,annotation_key,is_st)
-        else:
-            for cell in tot_cell_list:
-                train_cell_loop_once(cell, marker, expression, fraction, batch_size, sc_adata, out_dir, self.device,annotation_key,is_st)
-    '''

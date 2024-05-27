@@ -5,8 +5,8 @@ import pandas as pd
 import time
 ## IF R path isn't set as system path, using followings to set the config.
 
-os.environ["R_HOME"] = "D:/R/R-4.3.1" 
-os.environ["PATH"] = "D:/R/R-4.3.1/bin/x64" + ";" + os.environ["R_HOME"] 
+#os.environ["R_HOME"] = "D:/R/R-4.3.1" 
+#os.environ["PATH"] = "D:/R/R-4.3.1/bin/x64" + ";" + os.environ["R_HOME"] 
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from .. import utils

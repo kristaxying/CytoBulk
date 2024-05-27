@@ -9,7 +9,7 @@ from .. import utils
 import time
 from multiprocessing import Pool, cpu_count
 import numpy as np
-from ._cytospace import main_cytospace
+from ._cytospace import *
 
 def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict, cellname_list, original_sc):
     """
@@ -182,10 +182,101 @@ def bulk_mapping(frac_data,
 
     return bulk_adata,sc_mapping_dict
 
+def _run_cytospace(st_adata,sc_adata,n_cells_per_spot_data,scRNA_max_transcripts_per_cell=1500,
+                annotation_key="cell_type",downsample_off=False,output_folder="cytospace_results", 
+                distance_metric="Pearson_correlation",
+                mean_cell_numbers=5, solver_method="lapjv", sampling_method="duplicates",
+                single_cell=False, number_of_selected_spots=10000,
+                sampling_sub_spots=False, number_of_selected_sub_spots=10000,
+                number_of_processors=1, seed=1,
+                plot_off=False, geometry="honeycomb", max_num_cells_plot=50000, num_column=3):
+
+    
+    if solver_method == "lapjv" or solver_method == "lapjv_compat":
+        solver = import_solver(solver_method)
+    else:
+        solver = None
+
+    np.random.seed(seed)
+    random.seed(seed)
+
+    st_data = get.count_data(st_adata)
+    sc_data =get.count_data(sc_adata)
+    cell_type_data=get.meta(sc_adata,columns=annotation_key)
+    coordinates_data=get.coords(st_adata)
+    deconv_result=get.meta(st_adata,position_key="obsm",columns="deconv")
+    if n_cells_per_spot_data:
+        cell_number_to_node_assignment = n_cells_per_spot_data.values[:, 0].astype(int)
+    else:
+        cell_number_to_node_assignment = estimate_cell_number_RNA_reads(st_data, mean_cell_numbers)
+    number_of_cells = np.sum(cell_number_to_node_assignment)
+    cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
+    
+    ### Sample scRNA_data
+    print("Down/up sample of scRNA-seq data according to estimated cell type fractions")
+    t0 = time.perf_counter()
+
+    # downsample scRNA_data_sampled to equal transcript counts per cell
+    # so that the assignment is not dependent on expression level
+    if not downsample_off:
+        scRNA_data_sampled = downsample(scRNA_data_sampled, scRNA_max_transcripts_per_cell)
+
+    # sample scRNA_data based on cell type composition
+    # cell count in scRNA_data_sampled will be equal to cell count (not spot count) in ST data
+    # additionally, the cells in scRNA_data_sampled will be in the order of cell types in cell_type_numbers_int
+    scRNA_data_sampled =\
+        sample_single_cells(scRNA_data_sampled, cell_type_data, cell_type_numbers_int, sampling_method, seed)
+
+    print(f"Time to down/up sample scRNA-seq data: {round(time.perf_counter() - t0, 2)} seconds")
+
+    # cell types are not specified; estimating from cell type fraction data
+    index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]),
+                                        split_by_interval_int=number_of_selected_spots,
+                                        shuffle=True)
+    index_st_list = partition_indices(np.arange(st_data.shape[1]),
+                                        split_by_interval_int=number_of_selected_spots,
+                                        shuffle=True)
+
+    assigned_locations, cell_ids_selected =\
+        apply_linear_assignment(scRNA_data_sampled, st_data, coordinates_data, cell_number_to_node_assignment,
+                                solver_method, solver, seed, distance_metric, number_of_processors,
+                                index_sc_list, index_st_list=index_st_list)
+
+    if sampling_sub_spots:      
+        if number_of_selected_sub_spots > np.sum(cell_number_to_node_assignment):
+            number_of_selected_sub_spots = np.sum(cell_number_to_node_assignment)
+
+        
+
+        index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]),
+                                            split_by_interval_int=number_of_selected_sub_spots,
+                                            shuffle=True)
+        # 1D np.array; repeat each node index by the number of cells in that node
+        cell_number_to_node_assignment_aggregate = np.repeat(range(len(cell_number_to_node_assignment)), cell_number_to_node_assignment)
+        subsample_spot_idxs_list = partition_indices(cell_number_to_node_assignment_aggregate,
+                                                        split_by_interval_int=number_of_selected_sub_spots,
+                                                        shuffle=True)
+        # aggregate each set of indices in this list back to the (node index) - (count) format
+        cell_number_to_node_assignment_list = [np.bincount(subsample_spot_idxs, minlength=(len(cell_number_to_node_assignment)))
+                                                for subsample_spot_idxs in subsample_spot_idxs_list]
+            
+        assigned_locations, cell_ids_selected =\
+            apply_linear_assignment(scRNA_data_sampled, st_data, coordinates_data, cell_number_to_node_assignment,
+                                    solver_method, solver, seed, distance_metric, number_of_processors,
+                                    index_sc_list, subsampled_cell_number_to_node_assignment_list=cell_number_to_node_assignment_list)
+            
+    else:
+
+        index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]), shuffle=False)
+
+        assigned_locations, cell_ids_selected =\
+            apply_linear_assignment(scRNA_data_sampled, st_data, coordinates_data, cell_number_to_node_assignment,
+                                    solver_method, solver, seed, distance_metric, number_of_processors,
+                                    index_sc_list)
 
 
 
-def st_mapping(st_adata,sc_adata,deconv_results,solution_method="cytospace"):
+def st_mapping(st_adata,sc_adata,solution_method="cytospace"):
     if solution_method=="cytospace":
-        main_cytospace(st_adata,sc_adata,deconv_results)
+        _run_cytospace(st_adata,sc_adata)
     return 
