@@ -13,9 +13,9 @@ import time
 def _filter_adata(
     adata,
     min_counts_per_gene=None,
-    min_counts_per_cell=50,
+    min_counts_per_cell=10,
     min_cells_per_gene=100,
-    min_genes_per_cell=500,
+    min_genes_per_cell=100,
     remove_constant_genes=True,
     remove_zero_cells=True,
     save=False,
@@ -182,7 +182,7 @@ def _filter_dataframe(
 
 def qc_bulk_sc(bulk_data,
             sc_adata,
-            min_counts_per_sample=100,
+            min_counts_per_sample=50,
             min_genes_per_sample=100,
             out_dir='.',
             dataset_name='',
@@ -209,21 +209,30 @@ def qc_bulk_sc(bulk_data,
     Returns the filtered bulk data (adata) and sc data (adata).
 
     """
+    sc_adata.var_names_make_unique()
+    
     project_sc = dataset_name+'_sc'
     project_bulk = dataset_name+'_bulk'
     # check data format
     if not isinstance(sc_adata,ad.AnnData):
         raise ValueError(f"`A` can only be a dataframe but is a {sc_adata.__class__}!")
-    if not isinstance(bulk_data,pd.DataFrame):
-        raise ValueError(f"`A` can only be a anndata.AnnData but is a {bulk_data.__class__}!")
-    print("------------------start filtering bulk data-------------------------")
-    filtered_bulk = _filter_dataframe(bulk_data,
-                                    min_counts_per_sample=min_counts_per_sample,
-                                    min_genes_per_sample=min_genes_per_sample,
-                                    project = project_bulk,
-                                    out_dir=out_dir,
-                                    **kwargs)
-    print("------------------finish filtering bulk data-------------------------")
+    if isinstance(bulk_data,pd.DataFrame):
+        print("------------------start filtering bulk data-------------------------")
+        filtered_bulk = _filter_dataframe(bulk_data,
+                                        min_counts_per_sample=min_counts_per_sample,
+                                        min_genes_per_sample=min_genes_per_sample,
+                                        project = project_bulk,
+                                        out_dir=out_dir,
+                                        **kwargs)
+        print("------------------finish filtering bulk data-------------------------")
+    else:
+        bulk_data.var_names_make_unique()
+        filtered_bulk = _filter_adata(bulk_data,
+                                    min_counts_per_cell=min_counts_per_sample,
+                                    min_genes_per_cell=min_genes_per_sample,
+                                        project = project_bulk,
+                                        out_dir=out_dir,
+                                        **kwargs)
 
     print("------------------start filtering single cell data-------------------------")
     filtered_sc = _filter_adata(sc_adata,
@@ -241,6 +250,8 @@ def qc_bulk_sc(bulk_data,
 
 def high_variable_gene(adata,flavor):
     sc.pp.highly_variable_genes(adata, min_mean=0, max_mean=np.inf, min_disp=0.25,flavor=flavor)
+    if len(adata.var.highly_variable)>2000:
+        sc.pp.highly_variable_genes(adata, min_mean=0, max_mean=np.inf, min_disp=0.5,flavor=flavor)
     return adata[:, adata.var.highly_variable]
 
 def qc_st_sc(st_adata,
@@ -272,7 +283,8 @@ def qc_st_sc(st_adata,
     Returns the filtered bulk data (adata) and sc data (adata).
 
     """
-
+    sc_adata.var_names_make_unique()
+    st_adata.var_names_make_unique()
     project_sc = dataset_name+'_sc'
     project_st = dataset_name+'_st'
     # check data format
