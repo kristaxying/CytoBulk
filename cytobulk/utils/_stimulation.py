@@ -101,8 +101,9 @@ def _get_stimulation(sc_data,meta_data,n_celltype,annotation_key,n_sample,n,roun
     
 
     return sample_data,cell_prop
-
-def _get_prop_specific_sti(sc_data,meta_data,n_celltype,cell_specific,annotation_key,n_sample,n,round_th,project,set_missing=False):
+    
+    
+def _get_prop_sample_bulk(sc_data,meta_data,cell_composition,n_celltype,cell_specific,annotation_key,n_sample,n,round_th,project,set_missing=False):
 
     """
     Get stimulated expression data and cell type prop.
@@ -128,16 +129,23 @@ def _get_prop_specific_sti(sc_data,meta_data,n_celltype,cell_specific,annotation
     Returns the stimulated bulk adata.
 
     """
-    cell_prop = np.random.dirichlet(np.ones(n_celltype), n_sample)
-
-    #cell_prop[cell_prop < 1/n_celltype] = 0
-
     meta_index = meta_data[[annotation_key]]
     meta_index = meta_index.groupby(meta_data[annotation_key]).groups
     allcellname = list(meta_index.keys())
 
     selected_index = allcellname.index(cell_specific)
-    print(selected_index)
+
+
+    cell_prop = np.zeros((n_sample,n_celltype))
+
+    get_prop = np.random.dirichlet(np.ones(len(cell_composition)), n_sample)
+    for i in range(n_sample):
+        cell_prop[i,cell_composition]=get_prop[i,:]
+      
+
+    #cell_prop[cell_prop < 1/n_celltype] = 0
+
+
     for key, value in meta_index.items():
         meta_index[key] = np.array(value)
     # scale prop value
@@ -151,17 +159,8 @@ def _get_prop_specific_sti(sc_data,meta_data,n_celltype,cell_specific,annotation
         #cells = np.random.choice(np.arange(cell_prop.shape[1]), replace=False, size=cell_prop.shape[1]-5)
         #cell_prop[sample, cells] = 0
         #cell_prop[:,selected_index]+=0.05
-    if cell_prop.shape[1] > 5:
-        for j in range(int(cell_prop.shape[0])):
-          cells = np.random.choice(np.arange(cell_prop.shape[1]), replace=False, size=cell_prop.shape[1]-5).tolist()
-          if selected_index in cells:
-             cells.remove(selected_index)
-          cell_prop[j, cells] = 0
-    cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
-    if cell_prop.shape[1]<=5:
-        cell_prop[:,selected_index]=cell_prop[:,selected_index]+2
-    else:
-        cell_prop[:,selected_index]=cell_prop[:,selected_index]+1.25
+    
+    cell_prop[:,selected_index]=cell_prop[:,selected_index]+.2
     cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
     print(f'Start sampling for major cell type is {cell_specific}')
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))
@@ -183,6 +182,7 @@ def _get_prop_specific_sti(sc_data,meta_data,n_celltype,cell_specific,annotation
         columns=sc_data.index)
 
     return sample_data,cell_prop
+
 
 
 def _get_prop_sample_sti(sc_data,meta_data,cell_composition,n_celltype,cell_specific,annotation_key,n_sample,n,round_th,project,set_missing=False):
@@ -211,22 +211,31 @@ def _get_prop_sample_sti(sc_data,meta_data,cell_composition,n_celltype,cell_spec
     Returns the stimulated bulk adata.
 
     """
-
-    cell_prop = np.zeros((n_sample,n_celltype))
-
-    get_prop = np.random.dirichlet(np.ones(len(cell_composition)), n_sample)
-
-    for i in range(n_sample):
-      cell_prop[i,cell_composition]=get_prop[i,:]
-      
-
-    #cell_prop[cell_prop < 1/n_celltype] = 0
-
     meta_index = meta_data[[annotation_key]]
     meta_index = meta_index.groupby(meta_data[annotation_key]).groups
     allcellname = list(meta_index.keys())
 
     selected_index = allcellname.index(cell_specific)
+
+
+    cell_prop = np.zeros((n_sample,n_celltype))
+
+    get_prop = np.random.dirichlet(np.ones(len(cell_composition)), n_sample)
+    if len(cell_composition) > 6:
+        get_prop = np.random.dirichlet(np.ones(6), n_sample)
+        for j in range(int(get_prop.shape[0])):
+            cell_chosen = np.random.choice(cell_composition, replace=False, size=6).tolist()
+            if selected_index not in cell_chosen:
+                cell_chosen.pop()
+                cell_chosen.append(selected_index)
+            cell_prop[j, cell_chosen] = get_prop[j,:]
+    else:
+        for i in range(n_sample):
+            cell_prop[i,cell_composition]=get_prop[i,:]
+      
+
+    #cell_prop[cell_prop < 1/n_celltype] = 0
+
 
     for key, value in meta_index.items():
         meta_index[key] = np.array(value)
@@ -267,6 +276,7 @@ def _get_prop_sample_sti(sc_data,meta_data,cell_composition,n_celltype,cell_spec
     
 
 def bulk_simulation(sc_adata,
+                    bulk_adata,
                     cell_list,
                     annotation_key,
                     project,
@@ -332,30 +342,71 @@ def bulk_simulation(sc_adata,
     new_prop = []
     if isspmatrix(sub_sc_adata.X):
           sub_sc_adata.X = sub_sc_adata.X.todense()
+    from sklearn.metrics.pairwise import cosine_similarity
+    from collections import Counter
+    average_cell_exp = compute_cluster_averages(sub_sc_adata,annotation_key,cell_list,out_dir=out_dir,project=project,save=True).T
+    if not isinstance(bulk_adata.X, np.ndarray):
+        bulk_data = pd.DataFrame(bulk_adata.X.todense(),index=bulk_adata.obs_names,columns=bulk_adata.var_names)
+    else:
+        bulk_data = pd.DataFrame(bulk_adata.X,index=bulk_adata.obs_names,columns=bulk_adata.var_names)
+    similarity_matrix = cosine_similarity(bulk_data.values,average_cell_exp.values)
+    all_most_index=np.argsort(-similarity_matrix, axis=1)[:, 0].flatten()
+    most_sim_index = np.unique(all_most_index)
+    most_sim_cell = [average_cell_exp.index.tolist()[x] for i, x in enumerate(all_most_index)]
+    cell_prop = Counter(most_sim_cell)
+    for cell_name in cell_prop.keys():
+        cell_prop[cell_name] = cell_prop[cell_name]/bulk_data.shape[0]
+    selected_index = np.argsort(-similarity_matrix, axis=1)
+    selected_sim_index = np.unique(np.argsort(-similarity_matrix, axis=1).flatten())
+    rare_cell_list = np.setdiff1d(selected_sim_index,most_sim_index,False)
+    all_cells_names = np.array(average_cell_exp.index.tolist())[selected_sim_index]
+    sample_cell_composition =  dict(enumerate(selected_index))
     
     sc_data = pd.DataFrame(sub_sc_adata.X,index=sub_sc_adata.obs_names,columns=sub_sc_adata.var_names).transpose()
-
+    
     for i in range(group_number):
-        ref_data,ref_prop = _get_stimulation(sc_data,
-                                            sub_sc_adata.obs,
-                                            n_celltype,
-                                            annotation_key,
-                                            n_sample_each_group,
-                                            min_cells_each_group+i*cell_gap_each_group,
-                                            i,
-                                            project)
-        new_data.append(ref_data)
-        new_prop.append(ref_prop)
+        for j in range(bulk_data.shape[0]):
+            selected_celltype = sample_cell_composition[j]
+            cells = np.array(average_cell_exp.index.tolist())[selected_celltype[0]]
+            sti_num = int(n_sample_each_group*(1/bulk_data.shape[0]))
+            ref_data,ref_prop = _get_prop_sample_bulk(sc_data,
+                                                    sub_sc_adata.obs,
+                                                    selected_celltype,
+                                                    n_celltype,
+                                                    cells,
+                                                    annotation_key,
+                                                    sti_num,
+                                                    min_cells_each_group+i*cell_gap_each_group,
+                                                    i,
+                                                    project,
+                                                    set_missing=False)
+            new_data.append(ref_data)
+            new_prop.append(ref_prop)
+        for rare_cell in rare_cell_list:
+            cells = np.array(average_cell_exp.index.tolist())[rare_cell]
+            ref_data,ref_prop = _get_prop_sample_sti(sc_data,
+                                sub_sc_adata.obs,
+                                selected_sim_index,
+                                n_celltype,
+                                cells,
+                                annotation_key,
+                                int(n_sample_each_group*((1/2)/bulk_data.shape[0])),
+                                min_cells_each_group+i*cell_gap_each_group,
+                                i,
+                                project,
+                                set_missing=False)
+            new_data.append(ref_data)
+            new_prop.append(ref_prop)
 
     ref_data = pd.concat(new_data)
     ref_prop = pd.concat(new_prop)
-    
     ref_data = pd.DataFrame(ref_data.values,
-                      index=[f'Sample{str(i)}_{project}_sti' for i in range(ref_data.shape[0])],
-                      columns=ref_data.columns)
+                index=[f'Sample{str(i)}_{project}' for i in range(ref_data.shape[0])],
+                columns=ref_data.columns)
     ref_prop = pd.DataFrame(ref_prop.values,
-                        index=[f'Sample{str(i)}_{project}_sti' for i in range(ref_data.shape[0])],
-                        columns=ref_prop.columns)
+                index=[f'Sample{str(i)}_{project}' for i in range(ref_data.shape[0])],
+                columns=ref_prop.columns)
+
         
     if rename_dict is not None:
         ref_prop.rename(columns=rename_dict,inplace=True)
@@ -450,7 +501,6 @@ def st_simulation(sc_adata,
         start_t = time.perf_counter()
 
         n_celltype = len(cell_list)
-        print(n_celltype)
         #subset sc data
         sub_sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(cell_list),:].copy()
         #generate new data
@@ -495,20 +545,20 @@ def st_simulation(sc_adata,
             selected_index = np.argsort(-similarity_matrix, axis=1)[:, :6]
             selected_sim_index = np.unique(np.argsort(-similarity_matrix, axis=1)[:,:6].flatten())
             rare_cell_list = np.setdiff1d(selected_sim_index,most_sim_index,False)
-            print(cell_prop)
             all_cells_names = np.array(average_cell_exp.index.tolist())[selected_sim_index]
-            print(all_cells_names)
-            print(np.array(average_cell_exp.index.tolist())[rare_cell_list])
             sample_cell_composition =  dict(enumerate(selected_index))
+
             for i in range(group_number):
                 for j in range(st_data.shape[0]):
                     selected_celltype = sample_cell_composition[j]
                     cells = np.array(average_cell_exp.index.tolist())[selected_celltype[0]]
-                    if cell_prop[cells]>(4/n_celltype):
+                    if cell_prop[cells]>0.6:
+                        sti_num=1
+                    elif cell_prop[cells]>(6/len(all_cells_names)) or cell_prop[cells]>0.5:
                         sti_num=2
-                    elif cell_prop[cells]>(3/n_celltype):
+                    elif cell_prop[cells]>(4/len(all_cells_names)) or cell_prop[cells]>0.4:
                         sti_num=3
-                    elif cell_prop[cells]>(2/n_celltype):
+                    elif cell_prop[cells]>(2/len(all_cells_names)):
                         sti_num=4
                     else:
                         sti_num=5
@@ -525,6 +575,7 @@ def st_simulation(sc_adata,
                                                             set_missing=False)
                     new_data.append(ref_data)
                     new_prop.append(ref_prop)
+                    
                     #if len(np.intersect1d(rare_cell_list,np.array(selected_celltype)))>0:
                 for rare_cell in rare_cell_list:
                     cells = np.array(average_cell_exp.index.tolist())[rare_cell]
@@ -554,8 +605,8 @@ def st_simulation(sc_adata,
                                         i,
                                         project,
                                         set_missing=False)
-                new_data.append(ref_data)
-                new_prop.append(ref_prop)
+                        new_data.append(ref_data)
+                        new_prop.append(ref_prop)
                         
             ref_data = pd.concat(new_data)
             ref_prop = pd.concat(new_prop)
@@ -568,81 +619,6 @@ def st_simulation(sc_adata,
             nonzero_columns = ref_prop.any()
             ref_prop = ref_prop.loc[:, nonzero_columns]
             
-        '''
-            from sklearn.metrics.pairwise import cosine_similarity
-            from collections import Counter
-            average_cell_exp = compute_cluster_averages(sub_sc_adata,annotation_key,cell_list,out_dir=out_dir,project=project,save=True).T
-            if not isinstance(st_adata.X, np.ndarray):
-                st_data = pd.DataFrame(st_adata.X.todense(),index=st_adata.obs_names,columns=st_adata.var_names)
-            else:
-                st_data = pd.DataFrame(st_adata.X,index=st_adata.obs_names,columns=st_adata.var_names)
-            similarity_matrix = cosine_similarity(st_data.values,average_cell_exp.values)
-            most_sim_index = np.argsort(-similarity_matrix, axis=1)[:, 0].flatten()
-            selected_index = np.argsort(-similarity_matrix, axis=1)[:, :6]
-            sample_cell_composition =  dict(enumerate(selected_index))
-            print("sample")
-            print(sample_cell_composition)
-            selected_cell = np.array(average_cell_exp.index.tolist())[np.unique(selected_index.flatten())]
-            cell_list = selected_cell
-            n_celltype = len(cell_list)
-            most_sim_cell = [average_cell_exp.index.tolist()[x] for i, x in enumerate(most_sim_index)]
-            cell_prop = Counter(most_sim_cell)
-            for cell_name in cell_prop.keys():
-                cell_prop[cell_name] = cell_prop[cell_name]/st_data.shape[0]
-            sub_sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(cell_list),:].copy()
-            if isspmatrix(sub_sc_adata.X):
-                sub_sc_adata.X = sub_sc_adata.X.todense()
-            if not isinstance(sub_sc_adata.X, np.ndarray):
-                sub_sc_adata.X = sub_sc_adata.X.toarray()
-            sc_data = pd.DataFrame(sub_sc_adata.X,index=sub_sc_adata.obs_names,columns=sub_sc_adata.var_names).transpose()
-            for i in range(group_number):
-                for cells in cell_list:
-                    if cells in list(cell_prop.keys()):
-                        if cell_prop[cells]>2/len(list(cell_prop.keys())):
-                            sample_number = int(n_sample_each_group*(2/len(list(cell_prop.keys()))))
-                        elif cell_prop[cells]>1/len(list(cell_prop.keys())):
-                            sample_number = int(n_sample_each_group*(cell_prop[cells]))
-                        elif cell_prop[cells]<0.015:
-                            sample_number = int(n_sample_each_group*0.015)
-                        else:
-                            sample_number = int(n_sample_each_group*(1/len(list(cell_prop.keys()))))
-                    else:
-                        sample_number = int(n_sample_each_group*0.01)
-                #for cells in list(cell_prop.keys()):
-                    #sample_number = int(n_sample_each_group*(cell_prop[cells]))
-                    ##sample_number = int(n_sample_each_group*(1/len(list(cell_prop.keys()))))
-                    #if cell_prop[cells]>1/len(list(cell_prop.keys())):
-                        #sample_number = int(n_sample_each_group*(cell_prop[cells]))
-                    #elif cell_prop[cells]<0.01:
-                        #sample_number = int(n_sample_each_group*0.01)
-                    #else:
-                        #sample_number = int(n_sample_each_group*(1/len(list(cell_prop.keys()))))
-                    #else:
-                        #sample_number = int(n_sample_each_group*(1/len(list(cell_prop.keys()))))
-                        #sample_number = int(n_sample_each_group*(1/len(list(cell_prop.keys()))))
-                    ref_data,ref_prop = _get_prop_specific_sti(sc_data,
-                                                              sub_sc_adata.obs,
-                                                              n_celltype,
-                                                              cells,
-                                                              annotation_key,
-                                                              sample_number,
-                                                              min_cells_each_group+i*cell_gap_each_group,
-                                                              i,
-                                                              project,
-                                                              set_missing=False)
-                    new_data.append(ref_data)
-                    new_prop.append(ref_prop)
-
-            ref_data = pd.concat(new_data)
-            ref_prop = pd.concat(new_prop)
-            
-            ref_data = pd.DataFrame(ref_data.values,
-                        index=[f'Sample{str(i)}_{project}' for i in range(ref_data.shape[0])],
-                        columns=ref_data.columns)
-            ref_prop = pd.DataFrame(ref_prop.values,
-                        index=[f'Sample{str(i)}_{project}' for i in range(ref_data.shape[0])],
-                        columns=ref_prop.columns)
-        '''
         if rename_dict is not None:
             ref_prop.rename(columns=rename_dict,inplace=True) 
         print(f'Time to generate st data: {round(time.perf_counter() - start_t, 2)} seconds')

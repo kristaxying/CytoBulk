@@ -175,12 +175,15 @@ def test_st_mapping(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset
                         n_cell=5)
 
 
-@pytest.mark.parametrize("image_path,st_path", [("../","../")])   
-def test_st_mapping(image_path,st_path):
-    st = sc.read_visium(st_path)
-    '''
-    '''
-    ct.tl.img_segmentation(image_path = image_path,st_data = st)
+@pytest.mark.parametrize("st_path", [("E:/CytoBulk/plot_data/BRCA_case/10x/case_data/st_adata_sub_5.h5ad")])   
+def test_segmentation(st_path):
+    ret,cell_pos = ct.tl.predict_cell_num(
+                    st_path,
+                    diameter=0,
+                    save_png_result=False,
+                    model_type='cyto3',
+                    cellprob_threshold=.8
+                )
 
 
 

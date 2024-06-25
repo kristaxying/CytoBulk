@@ -9,7 +9,7 @@ from .. import utils
 import time
 from multiprocessing import Pool, cpu_count
 import numpy as np
-from ._cytospace import *
+from ._st_reconstruction import *
 
 def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict, cellname_list, original_sc):
     """

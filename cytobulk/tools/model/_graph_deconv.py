@@ -163,7 +163,7 @@ class GraphNet_bulk(nn.Module):
     def __init__(self, in_c, hid_c, out_c, K, device):
         super(GraphNet_bulk, self).__init__()
         self.conv1 = GraphConv(in_c=in_c, out_c=hid_c, K=K, device=device)
-        self.conv2 = GraphConv(in_c=hid_c, out_c=out_c, K=K, device=device)
+        #self.conv2 = GraphConv(in_c=hid_c, out_c=out_c, K=K, device=device)
         self.act = nn.ELU()
 
     def forward(self, graph, data):
@@ -175,9 +175,9 @@ class GraphNet_bulk(nn.Module):
         flow_x = flow_x.view(B, 1, N)
 
         output_1 = self.act(self.conv1(flow_x, graph_data))
-        output_2 = self.act(self.conv2(output_1, graph_data))
+        #output_2 = self.act(self.conv2(output_1, graph_data))
 
-        return output_2
+        return output_1
     
 
 class GraphNet_st(nn.Module):
@@ -383,13 +383,6 @@ def train_cell_loop_once(cell,
                         best_graph = model_graph.state_dict()
                         best_linear = model_linear.state_dict()
                     else:
-                        if not is_st:
-                            if pearson_r >= model_r and model_loss > loss_f:
-                                model_loss = loss_f
-                                model_r = pearson_r
-                                best_graph = model_graph.state_dict()
-                                best_linear = model_linear.state_dict()
-                        else:
                             if (pearson_r >= model_r and model_loss > loss_f-0.004) or (model_r<0):
                                 model_loss = loss_f
                                 model_r = pearson_r
@@ -433,23 +426,19 @@ def train_cell_loop_once(cell,
                                     print("stop linear training")
                     else:
                         if not graph_break and epo>0:
-                            if pearson_r> 0.95 and epo<=20:
+                            if pearson_r> 0.95 and epo<=5:
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0005)
                                 print("stop graph training,linear training--0.0005")
-                            elif pearson_r> 0.9 and epo>5 and epo<=20:
+                            elif pearson_r> 0.9 and epo>5 and epo<=15:
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0015)
                                 print("graph training--0.0005,linear training--0.0015")
-                            elif pearson_r> 0.85 and epo>10 and epo<=20:
+                            elif pearson_r> 0.85 and epo>10 and epo<=15:
                                 change_lr(model_graph_optim, 0.0005)
                                 change_lr(model_linear_optim, 0.0015)
                                 print("graph training--0.0005,linear training--0.0015")
-                            elif pearson_r> 0.80 and epo>15 and epo<=20:
-                                change_lr(model_graph_optim, 0.0005)
-                                change_lr(model_linear_optim, 0.0015)
-                                print("graph training--0.0005,linear training--0.0015")
-                            elif epo>= 22:
+                            elif epo>= 13:
                                 graph_break = True
                                 change_lr(model_linear_optim, 0.0005)
                                 print("epo>15,graph training break,linear training--0.0005")

@@ -342,6 +342,8 @@ def preprocessing(bulk_data,
     # training data simulation
 
     if is_st:
+        if n_sample_each_group<500:
+            n_sample_each_group=500
         pseudo_adata = utils.st_simulation(sc_adata, 
                 bulk_adata,
                 common_cell, 
@@ -356,7 +358,10 @@ def preprocessing(bulk_data,
                 save=True,
                 return_adata=True)
     else:
-        pseudo_adata = utils.bulk_simulation(sc_adata, 
+        if n_sample_each_group<300:
+            n_sample_each_group=300
+        pseudo_adata = utils.bulk_simulation(sc_adata,
+                        bulk_adata,
                         common_cell, 
                         annotation_key = annotation_key,
                         project=dataset_name, 
