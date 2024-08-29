@@ -5,8 +5,6 @@ import pandas as pd
 import time
 ## IF R path isn't set as system path, using followings to set the config.
 
-os.environ["R_HOME"] = "D:/R/R-4.3.1" 
-os.environ["PATH"] = "D:/R/R-4.3.1/bin/x64" + ";" + os.environ["R_HOME"] 
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from .. import utils
@@ -41,10 +39,8 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
     python_path = sys.executable
     # format expression data
     exp = get.count_data(sc_adata)
-    print(exp)
     sc_anno = pd.DataFrame(sc_adata.obs[anno_key])
     sc_anno.index.name="cell"
-    print(sc_anno)
     # get r script path
     current_file_dir = os.path.dirname(__file__)
 

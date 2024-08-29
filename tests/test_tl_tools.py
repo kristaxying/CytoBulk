@@ -175,7 +175,7 @@ def test_st_mapping(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset
                         n_cell=5)
 
 
-@pytest.mark.parametrize("st_path", [("E:/CytoBulk/plot_data/BRCA_case/10x/case_data/st_adata_sub_5.h5ad")])   
+@pytest.mark.parametrize("st_path", [("E:/CytoBulk/plot_data/BRCA_case/10x/case_data/st_adata_sub_6.h5ad")])   
 def test_segmentation(st_path):
     ret,cell_pos = ct.tl.predict_cell_num(
                     st_path,

@@ -1,4 +1,4 @@
-from cellpose import models, io, plot
+#from cellpose import models, io, plot
 import numpy as np
 import pandas as pd
 import scanpy as sc

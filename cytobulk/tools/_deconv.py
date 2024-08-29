@@ -319,7 +319,7 @@ def st_deconv(st_adata,
                                                                         **kwargs)
     #deconvolution
     if exists(f'{out_dir}/output/{dataset_name}_prediction_frac.csv'):
-        deconv_result = pd.read_csv(f'{out_dir}/output/{dataset_name}_prediction_frac.csv',index_col=0,header=True)
+        deconv_result = pd.read_csv(f'{out_dir}/output/{dataset_name}_prediction_frac.csv',index_col=0)
     else:
         deconv_result = _bulk_sc_deconv(st_adata, 
                                         pseudo_st, 

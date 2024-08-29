@@ -182,15 +182,18 @@ def bulk_mapping(frac_data,
 
     return bulk_adata,sc_mapping_dict
 
-def _run_cytospace(st_adata,sc_adata,n_cells_per_spot_data,scRNA_max_transcripts_per_cell=1500,
-                annotation_key="cell_type",downsample_off=False,output_folder="cytospace_results", 
-                distance_metric="Pearson_correlation",
-                mean_cell_numbers=5, solver_method="lapjv", sampling_method="duplicates",
-                single_cell=False, number_of_selected_spots=10000,
-                sampling_sub_spots=False, number_of_selected_sub_spots=10000,
-                number_of_processors=1, seed=1,
-                plot_off=False, geometry="honeycomb", max_num_cells_plot=50000, num_column=3):
-
+def _run_st_mapping(st_adata,
+                    sc_adata,
+                    n_cells_per_spot_data_path=None,
+                    cell_type_fraction_spot_estimation_path=None,
+                    scRNA_max_transcripts_per_cell=1500,
+                    annotation_key="celltype_minor",downsample_off=False,output_folder="output", 
+                    distance_metric="Pearson_correlation",
+                    mean_cell_numbers=5, solver_method="lapjv", sampling_method="duplicates",
+                    single_cell=False, number_of_selected_spots=10000,
+                    sampling_sub_spots=False, number_of_selected_sub_spots=10000,
+                    number_of_processors=1, seed=1,
+                    plot_off=False, geometry="honeycomb", max_num_cells_plot=50000, num_column=3):
     
     if solver_method == "lapjv" or solver_method == "lapjv_compat":
         solver = import_solver(solver_method)
@@ -201,14 +204,21 @@ def _run_cytospace(st_adata,sc_adata,n_cells_per_spot_data,scRNA_max_transcripts
     random.seed(seed)
 
     st_data = get.count_data(st_adata)
-    sc_data =get.count_data(sc_adata)
-    cell_type_data=get.meta(sc_adata,columns=annotation_key)
-    coordinates_data=get.coords(st_adata)
-    deconv_result=get.meta(st_adata,position_key="obsm",columns="deconv")
+    sc_data = get.count_data(sc_adata)
+    cell_type_data = get.meta(sc_adata,columns=annotation_key)
+    coordinates_data = get.coords(st_adata)
+    deconv_result = get.meta(st_adata,position_key="obsm",columns="deconv")
+    n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="spot_num")
+    
     if n_cells_per_spot_data:
         cell_number_to_node_assignment = n_cells_per_spot_data.values[:, 0].astype(int)
     else:
         cell_number_to_node_assignment = estimate_cell_number_RNA_reads(st_data, mean_cell_numbers)
+    
+    intersect_genes = st_data.index.intersection(scRNA_data.index)
+    scRNA_data_sampled = sc_data.loc[intersect_genes, :]
+    st_data = st_data.loc[intersect_genes, :]
+    
     number_of_cells = np.sum(cell_number_to_node_assignment)
     cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
     
@@ -228,55 +238,74 @@ def _run_cytospace(st_adata,sc_adata,n_cells_per_spot_data,scRNA_max_transcripts
         sample_single_cells(scRNA_data_sampled, cell_type_data, cell_type_numbers_int, sampling_method, seed)
 
     print(f"Time to down/up sample scRNA-seq data: {round(time.perf_counter() - t0, 2)} seconds")
-
+    
     # cell types are not specified; estimating from cell type fraction data
-    index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]),
-                                        split_by_interval_int=number_of_selected_spots,
-                                        shuffle=True)
-    index_st_list = partition_indices(np.arange(st_data.shape[1]),
-                                        split_by_interval_int=number_of_selected_spots,
-                                        shuffle=True)
+    assigned_locations_list = []
+    cell_ids_selected_list=[]
+    for cells in cell_type_numbers_int.index.tolist():
+        scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
+        cell_type_index = cell_type_data[cell_type_data[annotation_key] == cells].index.tolist()
+        cell_type_selected_index=np.intersect1d(scRNA_data_sampled_cell_type,cell_type_index).tolist()
+        scRNA_data_sampled_cell_type = scRNA_data_sampled.loc[:,cell_type_selected_index]
+        index_sc_list = partition_indices(np.arange(scRNA_data_sampled_cell_type.shape[1]), shuffle=False)
+        st_selected_index = fraction_spot_num[fraction_spot_num[cells]>0].index.to_list()
+        cell_number_to_node_assignment_cell_type = fraction_spot_num.loc[st_selected_index,cells]
+        st_data_sub=st_data.loc[:,st_selected_index]
+        sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
+        if (len(st_selected_index) > 0) and (len(cell_type_selected_index) > 0):
+            print(cells)
+            print(cell_number_to_node_assignment_cell_type)
+            assigned_locations, cell_ids_selected =\
+                apply_linear_assignment(scRNA_data_sampled_cell_type, st_data_sub, sub_coordinates_data, cell_number_to_node_assignment_cell_type,
+                                        solver_method, solver, seed, distance_metric, number_of_processors,index_sc_list)
+            assigned_locations_list.append(assigned_locations)
+            cell_ids_selected_list.append(cell_ids_selected)
+    assigned_locations = pd.concat(assigned_locations_list)
+    cell_ids_selected = np.concatenate(cell_ids_selected_list, axis=0)
+    
+                
+    
+       
+    print(f"Total time to run CytoSPACE core algorithm: {round(time.perf_counter() - t0_core, 2)} seconds")
+    with open(fout_log,"a") as f:
+        f.write(f"Time to run CytoSPACE core algorithm: {round(time.perf_counter() - t0_core, 2)} seconds\n")
 
-    assigned_locations, cell_ids_selected =\
-        apply_linear_assignment(scRNA_data_sampled, st_data, coordinates_data, cell_number_to_node_assignment,
-                                solver_method, solver, seed, distance_metric, number_of_processors,
-                                index_sc_list, index_st_list=index_st_list)
+    ### Save results
+    print('Saving results ...')
+    
+    # identify unmapped spots
+    mapped_spots = assigned_locations.index
+    unmapped_spots = np.setdiff1d(list(all_spot_ids), list(mapped_spots)).tolist()
 
-    if sampling_sub_spots:      
-        if number_of_selected_sub_spots > np.sum(cell_number_to_node_assignment):
-            number_of_selected_sub_spots = np.sum(cell_number_to_node_assignment)
+    if len(unmapped_spots) > 0:
+        unassigned_locations  = coordinates_data.loc[unmapped_spots]
+        unassigned_locations.index = unassigned_locations.index.str.replace("SPOT_", "")
+        unassigned_locations["Number of cells"] = 0
+        unassigned_locations.to_csv(f"{output_path}/{output_prefix}unassigned_locations.csv", index=True)
+        print(f"{len(unmapped_spots)} spots had no cells mapped to them. Saved unfiltered version of assigned locations to {output_path}/{output_prefix}unassigned_locations.csv")
 
-        
+    
+    
+    save_results(output_path, output_prefix, cell_ids_selected, scRNA_data_sampled if sampling_method == "place_holders" else scRNA_data,
+                 assigned_locations, cell_type_data, sampling_method, single_cell)
 
-        index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]),
-                                            split_by_interval_int=number_of_selected_sub_spots,
-                                            shuffle=True)
-        # 1D np.array; repeat each node index by the number of cells in that node
-        cell_number_to_node_assignment_aggregate = np.repeat(range(len(cell_number_to_node_assignment)), cell_number_to_node_assignment)
-        subsample_spot_idxs_list = partition_indices(cell_number_to_node_assignment_aggregate,
-                                                        split_by_interval_int=number_of_selected_sub_spots,
-                                                        shuffle=True)
-        # aggregate each set of indices in this list back to the (node index) - (count) format
-        cell_number_to_node_assignment_list = [np.bincount(subsample_spot_idxs, minlength=(len(cell_number_to_node_assignment)))
-                                                for subsample_spot_idxs in subsample_spot_idxs_list]
-            
-        assigned_locations, cell_ids_selected =\
-            apply_linear_assignment(scRNA_data_sampled, st_data, coordinates_data, cell_number_to_node_assignment,
-                                    solver_method, solver, seed, distance_metric, number_of_processors,
-                                    index_sc_list, subsampled_cell_number_to_node_assignment_list=cell_number_to_node_assignment_list)
-            
-    else:
+    if not plot_off:
+        if single_cell:
+            plot_results(output_path, output_prefix, max_num_cells=max_num_cells_plot, single_cell_ST_mode=True)
+        else:
+            plot_results(output_path, output_prefix, coordinates_data=coordinates_data, geometry=geometry, num_cols=num_column, max_num_cells=max_num_cells_plot)
 
-        index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]), shuffle=False)
-
-        assigned_locations, cell_ids_selected =\
-            apply_linear_assignment(scRNA_data_sampled, st_data, coordinates_data, cell_number_to_node_assignment,
-                                    solver_method, solver, seed, distance_metric, number_of_processors,
-                                    index_sc_list)
+    print(f"Total execution time: {round(time.perf_counter() - start_time, 2)} seconds")
+    with open(fout_log,"a") as f:
+        f.write(f"Total execution time: {round(time.perf_counter() - start_time, 2)} seconds")
 
 
-
-def st_mapping(st_adata,sc_adata,solution_method="cytospace"):
-    if solution_method=="cytospace":
-        _run_cytospace(st_adata,sc_adata)
+def st_mapping(st_adata,sc_adata,solution_method="linear_assignment"):
+    start_t = time.perf_counter()
+    print("=================================================================================================")
+    print('Start to mapping bulk data with single cell dataset.')
+    _run_st_mapping(st_adata,sc_adata)
+    print(f'Time to finish mapping: {round(time.perf_counter() - start_t, 2)} seconds')
+    print("=========================================================================================================================================")
+    
     return 

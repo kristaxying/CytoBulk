@@ -14,7 +14,7 @@ def _filter_adata(
     adata,
     min_counts_per_gene=None,
     min_counts_per_cell=10,
-    min_cells_per_gene=100,
+    min_cells_per_gene=1,
     min_genes_per_cell=100,
     remove_constant_genes=True,
     remove_zero_cells=True,
@@ -250,8 +250,12 @@ def qc_bulk_sc(bulk_data,
 
 def high_variable_gene(adata,flavor):
     sc.pp.highly_variable_genes(adata, min_mean=0, max_mean=np.inf, min_disp=0.25,flavor=flavor)
-    if len(adata.var.highly_variable)>2000:
+    print("length")
+    print(len(adata.var.highly_variable))
+    if len(adata.var.highly_variable)>4000:
         sc.pp.highly_variable_genes(adata, min_mean=0, max_mean=np.inf, min_disp=0.5,flavor=flavor)
+    if len(adata.var.highly_variable)>4000:
+        sc.pp.highly_variable_genes(adata, n_top_genes=4000)
     return adata[:, adata.var.highly_variable]
 
 def qc_st_sc(st_adata,

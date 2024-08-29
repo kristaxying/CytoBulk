@@ -29,7 +29,7 @@ class Const:
     BATCH_SIZE = 64
     LEARNING_RATE = 0.005
     MAX_SPLIT = 10
-    EPOCH_NUM_BULK = 25
+    EPOCH_NUM_BULK = 12
     EPOCH_NUM_ST = 10
     SEED = 20230602
     CHEB_MODE = 0
@@ -308,6 +308,7 @@ def train_cell_loop_once(cell,
                     train_dataset = _dataset
                     valid_dataset = _valid
                     best_cosin = _cosin
+            print(best_cosin)
         train_loader = torch.utils.data.DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
         valid_loader = torch.utils.data.DataLoader(dataset = valid_dataset, batch_size = 1, shuffle = False)
         max_retry=5
@@ -383,59 +384,60 @@ def train_cell_loop_once(cell,
                         best_graph = model_graph.state_dict()
                         best_linear = model_linear.state_dict()
                     else:
-                            if (pearson_r >= model_r and model_loss > loss_f-0.004) or (model_r<0):
+                            if (pearson_r >= model_r-0.005 and model_loss > loss_f) or (model_r<0) or (pearson_r >= model_r and model_loss > loss_f-0.001):
                                 model_loss = loss_f
                                 model_r = pearson_r
                                 best_graph = model_graph.state_dict()
                                 best_linear = model_linear.state_dict()
                             #print(f"pearson_r = {model_r}...epo={epo}", end=" ")
-                    if (abs(pre_pearson_r-pearson_r)>0.002) and (smooth_times==1):
+                    if (abs(pre_pearson_r-pearson_r)>0.01) and (smooth_times==1):
                         smooth_times=0
-                    if (abs(pre_pearson_r-pearson_r)<=0.002):
+                    if (abs(pre_pearson_r-pearson_r)<=0.01):
                         smooth_times+=1
-                    
+                    '''
                     if is_st:
-                        if not graph_break and epo>0:
-                            if (pearson_r> 0.98 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
-                                graph_break = True
-                                change_lr(model_linear_optim, 0.0001)
-                                print("stop graph training,linear training--0.0001")
-                            elif (pearson_r> 0.95 and epo>3 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
-                                graph_break = True
-                                change_lr(model_linear_optim, 0.0001)
-                                print("stop graph training,linear training--0.0001")
-                            elif (pearson_r> 0.85 and epo>5 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
-                                graph_break = True
-                                change_lr(model_linear_optim, 0.0001)
-                                print("graph training--0.0005,linear training--0.0015")
-                            elif (pearson_r> 0.75 and epo>7 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.002) and (smooth_times==2)):
-                                graph_break = True
-                                change_lr(model_linear_optim, 0.0001)
-                                print("graph training--0.0005,linear training--0.0015")
-                            elif epo> 9:
-                                graph_break = True
-                                change_lr(model_linear_optim, 0.0001)
-                                print("epo>9,graph training break,linear training--0.0005")
-                        elif graph_break and epo>0:
-                            if not linear_stop:
-                                if abs(pre_loss-loss_f) <0.001 and abs(pre_loss-loss_f) > 0.0001:
-                                    change_lr(model_linear_optim, 0.0001)
-                                    print("change linear training--0.0001")
-                                elif abs(pre_loss-loss_f) <= 0.0001 or (loss_f <0.00001):
-                                    linear_stop = True
-                                    print("stop linear training")
+                    '''
+                    if not graph_break and epo>0:
+                        if (pearson_r> 0.97 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.01) and (smooth_times==2)):
+                            graph_break = True
+                            change_lr(model_linear_optim, 0.0001)
+                            print("stop graph training,linear training--0.0001")
+                        elif (pearson_r> 0.95 and epo>3 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.01) and (smooth_times==2)):
+                            graph_break = True
+                            change_lr(model_linear_optim, 0.0001)
+                            print("stop graph training,linear training--0.0001")
+                        elif (pearson_r> 0.85 and epo>5 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.01) and (smooth_times==2)):
+                            graph_break = True
+                            change_lr(model_linear_optim, 0.0001)
+                            print("graph training--0.0005,linear training--0.0015")
+                        elif (pearson_r> 0.75 and epo>7 and epo<=9) or ((abs(pre_pearson_r-pearson_r)<0.01) and (smooth_times==2)):
+                            graph_break = True
+                            change_lr(model_linear_optim, 0.0001)
+                            print("graph training--0.0005,linear training--0.0015")
+                        elif epo> 9:
+                            graph_break = True
+                            change_lr(model_linear_optim, 0.0001)
+                            print("epo>9,graph training break,linear training--0.0005")
+                    elif graph_break and epo>0:
+                        if not linear_stop:
+                            if loss_f<0.001 or abs(pre_loss-loss_f) < 0.0005:
+                                linear_stop = True
+                            elif abs(pre_loss-loss_f) <0.01 and abs(pre_loss-loss_f) > 0.001:
+                                change_lr(model_linear_optim, 0.001)
+                                print("change linear training--0.001")
+                    '''
                     else:
                         if not graph_break and epo>0:
                             if pearson_r> 0.95 and epo<=5:
                                 graph_break = True
-                                change_lr(model_linear_optim, 0.0005)
+                                change_lr(model_linear_optim, 0.0001)
                                 print("stop graph training,linear training--0.0005")
-                            elif pearson_r> 0.9 and epo>5 and epo<=15:
+                            elif pearson_r> 0.9 and epo>5 and epo<=7:
                                 graph_break = True
-                                change_lr(model_linear_optim, 0.0015)
+                                change_lr(model_linear_optim, 0.0001)
                                 print("graph training--0.0005,linear training--0.0015")
-                            elif pearson_r> 0.85 and epo>10 and epo<=15:
-                                change_lr(model_graph_optim, 0.0005)
+                            elif pearson_r> 0.85 and epo>7 and epo<=10:
+                                change_lr(model_graph_optim, 0.0001)
                                 change_lr(model_linear_optim, 0.0015)
                                 print("graph training--0.0005,linear training--0.0015")
                             elif epo>= 13:
@@ -444,15 +446,16 @@ def train_cell_loop_once(cell,
                                 print("epo>15,graph training break,linear training--0.0005")
                         elif graph_break and epo>1:
                             if not linear_stop:
-                                    if loss_f < 0.001 and loss_f > 0.0005:
+                                    if loss_f < 0.01 and loss_f > 0.005:
                                         change_lr(model_linear_optim, 0.0005)
                                         print("change linear training--0.0005")
-                                    elif loss_f < pre_loss and pre_loss-loss_f <= 0.0001:
+                                    elif loss_f < pre_loss and pre_loss-loss_f <= 0.001:
                                         linear_stop = True
                                         print("stop linear training")
-                                    elif loss_f <= 0.0005:
+                                    elif loss_f <= 0.002:
                                         change_lr(model_linear_optim, 0.0001)
                                         print("change linear training--0.0001")
+                    '''
                     if linear_stop and graph_break:
                         break
 
@@ -469,7 +472,7 @@ def train_cell_loop_once(cell,
             torch.save(best_graph, f"{out_dir}/graph_{cell}.pt")
             torch.save(best_linear, f"{out_dir}/linear_{cell}.pt")
             print("Done.")
-            if model_r <0.90:
+            if model_r <0.90 or model_loss>0.01:
                 meet_req+=1
     
             

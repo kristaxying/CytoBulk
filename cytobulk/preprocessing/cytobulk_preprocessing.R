@@ -27,18 +27,22 @@ run_giotto <- function(sc_data, sc_anno, python_path, out_dir, project, save=TRU
                                                     method = 'scran',
                                                     expression_values = 'normalized',
                                                     cluster_column = "leiden_clus")
-
-  Sig_scran <- unique(scran_markers_subclusters$genes[which(scran_markers_subclusters$ranking <= 150)])
-  norm_exp<-2^(sc_giotto_object@norm_expr)-1
-  print(sc_giotto_object@cell_metadata)
   id<-sc_giotto_object@cell_metadata$curated_cell_type
+  if(length(id)>30){
+      Sig_scran <- unique(scran_markers_subclusters$genes[which(scran_markers_subclusters$ranking <= 150)])
+  }else{
+      Sig_scran <- unique(scran_markers_subclusters$genes[which(scran_markers_subclusters$ranking <= 150)])
+  }
+  norm_exp<-2^(sc_giotto_object@norm_expr)-1
+
+
   ExprSubset<-norm_exp[Sig_scran,]
   Sig_exp<-NULL
   for (i in unique(id)){
     Sig_exp<-cbind(Sig_exp,(apply(ExprSubset,1,function(y) mean(y[which(id==i)]))))
   }
   colnames(Sig_exp)<-unique(id)
-  print(Sig_exp)
+
   if(save==TRUE){
       write.table(Sig_exp,file = paste0(out_dir,"/",project,"_marker.txt"),row.names = TRUE,sep="\t",col.names=TRUE,quote =FALSE)
   }

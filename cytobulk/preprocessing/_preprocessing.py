@@ -141,16 +141,19 @@ def _normalization_data(bulk_adata,sc_adata,scale_factors=None,trans_method='log
 
     return sc_data,bulk_data
 
-def _filter_cells(sc_adata, bulk_adata,num=20):
+def _filter_cells(sc_adata, bulk_adata,num=10):
     cell_name = sc_adata.obs_names
     bulk_matrix = bulk_adata.X
     sc_matrix = sc_adata.X
     similarity_matrix = cosine_similarity(bulk_matrix,sc_matrix)
     top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
     selected_indices = np.unique(top_k_indices.flatten())
-    
-    while len(selected_indices)<5*similarity_matrix.shape[0]:
-          num=int(num*1.5)
+    #if 10*bulk_adata.shape[0]<500:
+    target_num=500
+    #else:
+        #target_num=10*bulk_adata.shape[0]
+    while len(selected_indices)<target_num:
+          num=int(num*1.25)
           top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
           selected_indices = np.unique(top_k_indices.flatten())
 
@@ -249,14 +252,16 @@ def preprocessing(bulk_data,
         print("Start renaming cell type annotation")
         if not isinstance(rename,dict):
             raise ValueError(f"`A` can only be a dict but is a {rename.__class__}!")
-        meta = sc_adata.obs
-        meta['curated_cell_type'] = meta.apply(lambda x: rename[x[annotation_key]] if x[annotation_key] in rename else "invalid", axis=1)
+        
+        sc_adata.obs['curated_cell_type'] = sc_adata.obs.apply(lambda x: rename[x[annotation_key]] if x[annotation_key] in rename else "invalid", axis=1)
         annotation_key = 'curated_cell_type'
-        sc_adata.obs=meta
+
+        print(sc_adata)
         print("Finish renaming, the curated annotation could be found in sc_adata.obs['curated_cell_type']")
 
     print('================================================================================================================')
     print('------------------Start to check cell type annotation and quality control...------------------')
+    print(sc_adata)
     sc_adata = sc_adata[sc_adata.obs[annotation_key]!="invalid",:]
     if is_st:
         sc_adata, bulk_adata, common_gene = qc_st_sc(bulk_data,sc_adata,out_dir=out_dir,save=save,dataset_name=dataset_name,**kwargs)
@@ -283,11 +288,16 @@ def preprocessing(bulk_data,
         sampled_indices = []
         for cell_type in cell_types:
             cell_type_indices = sc_adata.obs.index[sc_adata.obs[annotation_key] == cell_type].tolist()
-            if len(cell_type_indices)<5*bulk_adata.shape[0]:
+            if 10*bulk_adata.shape[0]<3000:
+                target_num=3000
+            else:
+                target_num=10*bulk_adata.shape[0]
+            if len(cell_type_indices)<target_num:
                 sampled_indices.extend(cell_type_indices)
             else:
-                sampled_indices.extend(_filter_cells(sc_adata[sc_adata.obs[annotation_key] == cell_type],bulk_adata))
-                #sampled_indices.extend(np.random.choice(cell_type_indices, target_num, replace=False))
+                #sampled_indices.extend(_filter_cells(sc_adata[sc_adata.obs[annotation_key] == cell_type],bulk_adata))
+                sampled_indices.extend(np.random.choice(cell_type_indices, target_num, replace=False))
+                
         sc_adata = sc_adata[sampled_indices].copy()
         cell_type_counts = sc_adata.obs[annotation_key].value_counts()
         print("cell type after downsampling:")
@@ -342,8 +352,8 @@ def preprocessing(bulk_data,
     # training data simulation
 
     if is_st:
-        if n_sample_each_group<500:
-            n_sample_each_group=500
+        if n_sample_each_group<800:
+            n_sample_each_group=800
         pseudo_adata = utils.st_simulation(sc_adata, 
                 bulk_adata,
                 common_cell, 
@@ -358,8 +368,8 @@ def preprocessing(bulk_data,
                 save=True,
                 return_adata=True)
     else:
-        if n_sample_each_group<300:
-            n_sample_each_group=300
+        if n_sample_each_group<400:
+            n_sample_each_group=400
         pseudo_adata = utils.bulk_simulation(sc_adata,
                         bulk_adata,
                         common_cell, 
