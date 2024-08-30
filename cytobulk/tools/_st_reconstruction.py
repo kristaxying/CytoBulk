@@ -281,15 +281,10 @@ def get_cell_type_fraction(number_of_cells, cell_type_fraction_data):
     #fractions_to_numbers = np.round(cell_type_numbers.values*number_of_cells)
     fractions_to_numbers = cell_type_numbers.values*number_of_cells
     fractions_to_numbers = fractions_to_numbers.round().astype(int)
-    print("fractions_to_numbers")
-    print(fractions_to_numbers)
     cell_type_numbers.iloc[:,0] = fractions_to_numbers
-    print(cell_type_numbers)
-    print("cell_type_numbers")
     max_ct = cell_type_numbers.idxmax().values[0]
-    #cell_type_numbers.loc[max_ct,cell_type_numbers.columns[0]] += number_of_cells - sum(cell_type_numbers.iloc[:,0])
-    #cell_type_numbers.loc[cell_type_numbers.index[0],cell_type_numbers.columns[0]] += number_of_cells - sum(cell_type_numbers.iloc[:,0])
     return cell_type_numbers
+
 
 def partition_indices(indices, split_by_category_list=None, split_by_interval_int=None, shuffle=True):
     """

@@ -187,13 +187,22 @@ def _run_st_mapping(st_adata,
                     n_cells_per_spot_data_path=None,
                     cell_type_fraction_spot_estimation_path=None,
                     scRNA_max_transcripts_per_cell=1500,
-                    annotation_key="celltype_minor",downsample_off=False,output_folder="output", 
+                    annotation_key="celltype_minor",
+                    downsample_off=False,output_folder="output", 
                     distance_metric="Pearson_correlation",
-                    mean_cell_numbers=5, solver_method="lapjv", sampling_method="duplicates",
-                    single_cell=False, number_of_selected_spots=10000,
-                    sampling_sub_spots=False, number_of_selected_sub_spots=10000,
-                    number_of_processors=1, seed=1,
-                    plot_off=False, geometry="honeycomb", max_num_cells_plot=50000, num_column=3):
+                    mean_cell_numbers=5, 
+                    solver_method="lapjv", 
+                    sampling_method="duplicates",
+                    single_cell=False, 
+                    number_of_selected_spots=10000,
+                    sampling_sub_spots=False, 
+                    number_of_selected_sub_spots=10000,
+                    number_of_processors=1, 
+                    seed=1,
+                    plot_off=False, 
+                    geometry="honeycomb", 
+                    max_num_cells_plot=50000, 
+                    num_column=3):
     
     if solver_method == "lapjv" or solver_method == "lapjv_compat":
         solver = import_solver(solver_method)
@@ -202,16 +211,15 @@ def _run_st_mapping(st_adata,
 
     np.random.seed(seed)
     random.seed(seed)
-
     st_data = get.count_data(st_adata)
-    sc_data = get.count_data(sc_adata)
+    sc_data = get.count_data_t(sc_adata)
     cell_type_data = get.meta(sc_adata,columns=annotation_key)
     coordinates_data = get.coords(st_adata)
-    deconv_result = get.meta(st_adata,position_key="obsm",columns="deconv")
+    deconv_result = get.meta(st_adata,position_key="uns",columns="deconv")
     n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="spot_num")
     
     if n_cells_per_spot_data:
-        cell_number_to_node_assignment = n_cells_per_spot_data.values[:, 0].astype(int)
+        cell_number_to_node_assignment = n_cells_per_spot_data.astype(int)
     else:
         cell_number_to_node_assignment = estimate_cell_number_RNA_reads(st_data, mean_cell_numbers)
     
@@ -253,8 +261,6 @@ def _run_st_mapping(st_adata,
         st_data_sub=st_data.loc[:,st_selected_index]
         sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
         if (len(st_selected_index) > 0) and (len(cell_type_selected_index) > 0):
-            print(cells)
-            print(cell_number_to_node_assignment_cell_type)
             assigned_locations, cell_ids_selected =\
                 apply_linear_assignment(scRNA_data_sampled_cell_type, st_data_sub, sub_coordinates_data, cell_number_to_node_assignment_cell_type,
                                         solver_method, solver, seed, distance_metric, number_of_processors,index_sc_list)

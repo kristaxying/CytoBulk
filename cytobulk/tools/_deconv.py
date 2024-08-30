@@ -209,7 +209,7 @@ def bulk_deconv(bulk_data,
                                         annotation_key = annotation_key, 
                                         dataset_name=dataset_name, 
                                         out_dir=out_dir)
-    bulk_adata.obsm['deconv']=deconv_result
+    bulk_adata.uns['deconv']=deconv_result
     if mapping_sc:
         #bulk reconstruction
         bulk_adata,sc_mapping_dict = bulk_mapping(deconv_result,
@@ -330,7 +330,7 @@ def st_deconv(st_adata,
                                         out_dir=out_dir,
                                         batch_effect=different_source,
                                         is_st=True)
-    st_adata.obsm['deconv']=deconv_result
+    st_adata.uns['deconv']=deconv_result
 
     if mapping_sc:
         #bulk reconstruction

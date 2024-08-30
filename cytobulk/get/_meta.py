@@ -30,6 +30,11 @@ def get_meta(
             return adata.obs
         else:
             return adata.obs[columns]
+    else if position_key=="obsm":
+        return adata.obsm[columns]
+    else if position_key=="uns":
+        return adata.uns[columns]
+    
 
 
 
@@ -40,3 +45,5 @@ def get_coords(visium_adata):
     df_coords.index.name = 'SpotID'
 
     return df_coords
+    
+    
