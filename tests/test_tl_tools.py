@@ -159,7 +159,7 @@ def test_simulation_st(sc_adata,dataset_name, out_dir, annotation_key,marker_pat
                                                                             "Celltype..minor.lineage.",
                                                                             './MM_5_bulk',
                                                                             'MM_5_bulk')])   
-def test_st_mapping(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset_name):
+def test_st_deconv(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset_name):
     sc = test_read_adata(sc_adata)
     st = test_read_adata(st_adata)
     sc.__dict__['_raw'].__dict__['_var'] = sc.__dict__['_raw'].__dict__['_var'].rename(columns={'_index': 'features'})
@@ -174,7 +174,7 @@ def test_st_mapping(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset
                         different_source=True,
                         n_cell=5)
 
-
+@pytest.mark.skip
 @pytest.mark.parametrize("st_path", [("E:/CytoBulk/plot_data/BRCA_case/10x/case_data/st_adata_sub_6.h5ad")])   
 def test_segmentation(st_path):
     ret,cell_pos = ct.tl.predict_cell_num(
@@ -188,6 +188,12 @@ def test_segmentation(st_path):
 
 
 
+@pytest.mark.parametrize("sc_adata,st_adata", [("/Users/wangxueying/project/cytobulk/data/sc_adata.h5ad",
+                                                "/Users/wangxueying/project/cytobulk/data/st_adata_sub_4_construction.h5ad")])   
+def test_st_mapping(sc_adata,st_adata):
+    sc = test_read_adata(sc_adata)
+    st = test_read_adata(st_adata)
+    ct.tl.st_mapping(st_adata = st,sc_adata = sc)
 
 if __name__ == '__main__':
     pytest.main(["-s", "test_tl_tools.py"])

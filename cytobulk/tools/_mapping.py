@@ -10,6 +10,9 @@ import time
 from multiprocessing import Pool, cpu_count
 import numpy as np
 from ._st_reconstruction import *
+import random
+import sys
+from scipy.spatial import distance
 
 def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict, cellname_list, original_sc):
     """
@@ -184,59 +187,46 @@ def bulk_mapping(frac_data,
 
 def _run_st_mapping(st_adata,
                     sc_adata,
-                    n_cells_per_spot_data_path=None,
-                    cell_type_fraction_spot_estimation_path=None,
-                    scRNA_max_transcripts_per_cell=1500,
-                    annotation_key="celltype_minor",
-                    downsample_off=False,output_folder="output", 
-                    distance_metric="Pearson_correlation",
-                    mean_cell_numbers=5, 
-                    solver_method="lapjv", 
-                    sampling_method="duplicates",
-                    single_cell=False, 
-                    number_of_selected_spots=10000,
-                    sampling_sub_spots=False, 
-                    number_of_selected_sub_spots=10000,
-                    number_of_processors=1, 
                     seed=1,
-                    plot_off=False, 
-                    geometry="honeycomb", 
-                    max_num_cells_plot=50000, 
-                    num_column=3):
-    
-    if solver_method == "lapjv" or solver_method == "lapjv_compat":
-        solver = import_solver(solver_method)
-    else:
-        solver = None
+                    annotation_key='celltype_minor',
+                    sc_downsample=True,
+                    scRNA_max_transcripts_per_cell=1500,
+                    sampling_method="duplicates"):
 
     np.random.seed(seed)
     random.seed(seed)
+    # read data
+    st_adata.var_names_make_unique()
+    sc_adata.var_names_make_unique()
     st_data = get.count_data(st_adata)
-    sc_data = get.count_data_t(sc_adata)
+    sc_data = get.count_data(sc_adata)
     cell_type_data = get.meta(sc_adata,columns=annotation_key)
+    print(cell_type_data)
     coordinates_data = get.coords(st_adata)
     deconv_result = get.meta(st_adata,position_key="uns",columns="deconv")
-    n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="spot_num")
-    
-    if n_cells_per_spot_data:
-        cell_number_to_node_assignment = n_cells_per_spot_data.astype(int)
-    else:
-        cell_number_to_node_assignment = estimate_cell_number_RNA_reads(st_data, mean_cell_numbers)
-    
-    intersect_genes = st_data.index.intersection(scRNA_data.index)
+    n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="cell_num")
+    cell_number_to_node_assignment = n_cells_per_spot_data.astype(int)
+    intersect_genes = st_data.index.intersection(sc_data.index)
+    # preprocess
     scRNA_data_sampled = sc_data.loc[intersect_genes, :]
     st_data = st_data.loc[intersect_genes, :]
-    
+    # get cell num for each spot
+    fraction_spot_num = deconv_result.mul(cell_number_to_node_assignment.values,axis=0)
+    fraction_spot_num = fraction_spot_num.round().astype(int)
     number_of_cells = np.sum(cell_number_to_node_assignment)
-    cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
+    #cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
+    #print(cell_type_numbers_int)
+    cell_type_numbers_int = fraction_spot_num.sum().to_frame()
+    cell_type_numbers_int.columns=[0]
+    print(cell_type_numbers_int)
     
+
     ### Sample scRNA_data
     print("Down/up sample of scRNA-seq data according to estimated cell type fractions")
     t0 = time.perf_counter()
-
     # downsample scRNA_data_sampled to equal transcript counts per cell
     # so that the assignment is not dependent on expression level
-    if not downsample_off:
+    if sc_downsample:
         scRNA_data_sampled = downsample(scRNA_data_sampled, scRNA_max_transcripts_per_cell)
 
     # sample scRNA_data based on cell type composition
@@ -246,10 +236,109 @@ def _run_st_mapping(st_adata,
         sample_single_cells(scRNA_data_sampled, cell_type_data, cell_type_numbers_int, sampling_method, seed)
 
     print(f"Time to down/up sample scRNA-seq data: {round(time.perf_counter() - t0, 2)} seconds")
-    
+
+    # normalize data; output is an np.ndarray
+    scRNA_norm_np = utils.normalize_data(scRNA_data_sampled.to_numpy())
+    st_norm_np = utils.normalize_data(st_data.to_numpy())
+
+    # regenerate pandas dataframe from the normalized data
+    scRNA_norm_data = pd.DataFrame(scRNA_norm_np, index=scRNA_data_sampled.index, columns=scRNA_data_sampled.columns)
+    st_norm_data = pd.DataFrame(st_norm_np, index=st_data.index, columns=st_data.columns)
+
+
+
+
+    ''' 
+    index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]), shuffle=False)
+
+    subsampled_cell_number_to_node_assignment_list=None
+    index_st_list=None
+    distance_metric="Euclidean"
+    if (index_st_list is not None) and (subsampled_cell_number_to_node_assignment_list is not None):
+        raise ValueError("index_st_list and subsampled_cell_number_to_node_assignment_list cannot both be specified")
+
+    # normalize data; output is an np.ndarray
+    scRNA_norm_np = normalize_data(scRNA_data_sampled.to_numpy())
+    st_norm_np = normalize_data(st_data.to_numpy())
+
+    # regenerate pandas dataframe from the normalized data
+    scRNA_norm_data = pd.DataFrame(scRNA_norm_np, index=scRNA_data_sampled.index, columns=scRNA_data_sampled.columns)
+    st_norm_data = pd.DataFrame(st_norm_np, index=st_data.index, columns=st_data.columns)
+
+    expressions_tpm_scRNA_log = scRNA_norm_data.iloc[:, index_sc_list[0]].to_numpy()
+    expressions_tpm_st_log = st_norm_data.to_numpy()
+    '''  
     # cell types are not specified; estimating from cell type fraction data
     assigned_locations_list = []
     cell_ids_selected_list=[]
+    for cells in cell_type_numbers_int.index.tolist():
+        scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
+        cell_type_index = cell_type_data[cell_type_data.values == cells].index.tolist()
+        cell_type_selected_index=np.intersect1d(scRNA_data_sampled_cell_type,cell_type_index).tolist()
+        #scRNA_data_sampled_cell_type = scRNA_data_sampled.loc[:,cell_type_selected_index]
+        #index_sc_list = partition_indices(np.arange(scRNA_data_sampled_cell_type.shape[1]), shuffle=False)
+        st_selected_index = fraction_spot_num[fraction_spot_num[cells]>0].index.to_list()
+        cell_number_to_node_assignment_cell_type = fraction_spot_num.loc[st_selected_index,cells]
+        expressions_tpm_scRNA_log = scRNA_norm_data.loc[:,cell_type_selected_index]
+        expressions_tpm_st_log = st_norm_data.loc[:,st_selected_index]
+        sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
+        not_assigned_pos = np.arange(np.sum(cell_number_to_node_assignment_cell_type))
+        print("st")
+        print(len(not_assigned_pos))
+        not_assigned_cell = np.arange(expressions_tpm_scRNA_log.shape[1])
+        print("sc")
+        print(len(not_assigned_cell))
+        lap_expressions_tpm_st_log = expressions_tpm_st_log
+        lap_expressions_tpm_scRNA_log = expressions_tpm_scRNA_log
+        #total_cell_names = np.array(cell_type_selected_index)
+        #total_spot_names = np.array(st_selected_index)
+        total_cost = 0
+        while (len(not_assigned_pos)):
+            cost_matrix,lap_expressions_tpm_st_log = build_cost_matrix(lap_expressions_tpm_st_log,lap_expressions_tpm_scRNA_log, 0.2,cell_number_to_node_assignment_cell_type)
+            #res_matrix = np.zeros(lap_expressions_tpm_st_log.shape[1])
+            assignment_mat, cost = lap(cost_matrix)
+            assignment_mat = assignment_mat.astype(int)
+            assigned_pos_index = np.where(assignment_mat != -1)[0]
+            assigned_cell_index = assignment_mat[assigned_pos_index]
+            assigned_locations_list += list(lap_expressions_tpm_st_log.columns[assigned_pos_index])
+            cell_ids_selected_list += list(lap_expressions_tpm_scRNA_log.columns[assigned_cell_index])
+            #res_matrix[not_assigned_pos[assigned_pos_index]] = not_assigned_cell[assigned_cell_index]
+            not_assigned_pos_index = np.where(assignment_mat == -1)[0]
+            not_assigned_pos = not_assigned_pos[not_assigned_pos_index]
+            
+            #total_spot_names = total_spot_names[not_assigned_pos_index]
+            not_assigned_cell_index = np.isin(np.arange(len(not_assigned_cell)), assigned_cell_index, invert=True)
+            #total_cell_names = total_cell_names[not_assigned_cell_index]
+            not_assigned_cell = not_assigned_cell[not_assigned_cell_index]
+            not_assigned_num = len(not_assigned_pos_index)
+            print("assignment left: ", not_assigned_num)
+            total_cost += cost
+            lap_expressions_tpm_st_log = lap_expressions_tpm_st_log.iloc[:, not_assigned_pos]
+            lap_expressions_tpm_scRNA_log= lap_expressions_tpm_scRNA_log.iloc[:, not_assigned_cell]
+            not_assigned_cell = np.arange(lap_expressions_tpm_scRNA_log.shape[1])
+            cell_number_to_node_assignment_cell_type = np.array([1]*len(not_assigned_pos))
+            not_assigned_pos = np.arange(np.sum(cell_number_to_node_assignment_cell_type))
+            
+        #print(cost_matrix)
+        #location_repeat = np.zeros(expressions_tpm_st_log.shape[1])
+        ##location_repeat = np.repeat(np.arange(len(cell_number_to_node_assignment_cell_type)), cell_number_to_node_assignment_cell_type)
+        #location_repeat = location_repeat.astype(int)
+        #print(expressions_tpm_st_log.columns[location_repeat])
+        #expressions_tpm_st_log = expressions_tpm_st_log.loc[:, expressions_tpm_st_log.columns[location_repeat]]
+        #print(expressions_tpm_st_log)
+    reconstructed_sc = pd.DataFrame({"spot_id":assigned_locations_list,"cell_id":cell_ids_selected_list})
+    print(reconstructed_sc)
+        #while (len(not_assigned_pos)):
+
+    '''
+        if (len(st_selected_index) > 0) and (len(cell_type_selected_index) > 0):
+            assigned_locations, cell_ids_selected =\
+                apply_linear_assignment(scRNA_data_sampled_cell_type, st_data_sub, sub_coordinates_data, cell_number_to_node_assignment_cell_type,
+                                        solver_method, solver, seed, distance_metric, number_of_processors,index_sc_list)
+            assigned_locations_list.append(assigned_locations)
+            cell_ids_selected_list.append(cell_ids_selected)
+
+
     for cells in cell_type_numbers_int.index.tolist():
         scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
         cell_type_index = cell_type_data[cell_type_data[annotation_key] == cells].index.tolist()
@@ -268,6 +357,7 @@ def _run_st_mapping(st_adata,
             cell_ids_selected_list.append(cell_ids_selected)
     assigned_locations = pd.concat(assigned_locations_list)
     cell_ids_selected = np.concatenate(cell_ids_selected_list, axis=0)
+
     
                 
     
@@ -304,9 +394,10 @@ def _run_st_mapping(st_adata,
     print(f"Total execution time: {round(time.perf_counter() - start_time, 2)} seconds")
     with open(fout_log,"a") as f:
         f.write(f"Total execution time: {round(time.perf_counter() - start_time, 2)} seconds")
+    '''
 
 
-def st_mapping(st_adata,sc_adata,solution_method="linear_assignment"):
+def st_mapping(st_adata,sc_adata):
     start_t = time.perf_counter()
     print("=================================================================================================")
     print('Start to mapping bulk data with single cell dataset.')

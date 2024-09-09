@@ -249,3 +249,12 @@ def filter_gene(expression,reference,out_dir,cell_type,save=True):
         
 
     return expression[common_columns],reference[common_columns]
+
+
+
+def normalize_data(data):
+    data = np.nan_to_num(data).astype(float)
+    data *= 10**6 / np.sum(data, axis=0, dtype=float)
+    np.log2(data + 1, out=data)
+    np.nan_to_num(data, copy=False)
+    return data

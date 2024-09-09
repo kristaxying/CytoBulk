@@ -30,9 +30,9 @@ def get_meta(
             return adata.obs
         else:
             return adata.obs[columns]
-    else if position_key=="obsm":
-        return adata.obsm[columns]
-    else if position_key=="uns":
+    elif position_key=="obsm":
+        return pd.DataFrame(adata.obsm[columns],index=adata.obs_names,columns=[columns])
+    elif position_key=="uns":
         return adata.uns[columns]
     
 
