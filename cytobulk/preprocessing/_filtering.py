@@ -93,7 +93,7 @@ def _filter_adata(
             else:
                 not_constant = adata.X.max(axis=0)!=adata.X.min(axis=0)
                 if issparse(not_constant):
-                    not_constant = not_constant.A
+                    not_constant = not_constant.todense().A
                 not_constant = not_constant.flatten()
                 valid_genes = valid_genes.intersection(adata.var.index[not_constant])
     if len(adata.var.index) != len(valid_genes): # filter happened

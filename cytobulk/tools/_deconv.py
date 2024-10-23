@@ -61,9 +61,9 @@ def _bulk_sc_deconv(bulk_adata,
                 bulk_adata=bulk_adata,
                 cell_list=common_cells,
                 sc_adata = sc_adata,
-                annotation_key = annotation_key,
+                annotation_key = "curated_cell_type",
                 project_name = dataset_name,
-                data_num=bulk_adata.n_obs*10,
+                data_num=bulk_adata.n_obs*5,
                 batch_effect=batch_effect,
                 is_st=is_st)
     print(f'Time to finish training model: {round(time.perf_counter() - start_t, 2)} seconds')
@@ -167,6 +167,7 @@ def bulk_deconv(bulk_data,
     Returns the deconvolution result and reconstructed bulk.
     """
     # check the filtered dataset. If exist, skipping preprocessing.
+    bulk_ori_adata = bulk_data.copy()
     if exists(f'{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/sc_data_{dataset_name}.h5ad') and \
     exists(f'{out_dir}/filtered/bulk_data_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/cells_{dataset_name}.json'):
         
@@ -191,7 +192,7 @@ def bulk_deconv(bulk_data,
                                                                         cell_list=cell_list,
                                                                         scale_factors=scale_factors,
                                                                         trans_method=trans_method,
-                                                                        n_sample_each_group=len(bulk_data.obs_names)*6,
+                                                                        n_sample_each_group=len(bulk_data.obs_names)*5,
                                                                         min_cells_each_group=n_cell,
                                                                         cell_gap_each_group=50,
                                                                         group_number=10,
@@ -209,7 +210,11 @@ def bulk_deconv(bulk_data,
                                         annotation_key = annotation_key, 
                                         dataset_name=dataset_name, 
                                         out_dir=out_dir)
-    bulk_adata.uns['deconv']=deconv_result
+    row_sums = deconv_result.sum(axis=1)
+    df_normalized = deconv_result.div(row_sums, axis=0)
+    bulk_ori_adata.uns['deconv']=df_normalized
+    df_normalized.to_csv(f"{out_dir}/{dataset_name}_prediction_frac_normalized.csv")
+    bulk_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_bulk_adata.h5ad')
     if mapping_sc:
         #bulk reconstruction
         bulk_adata,sc_mapping_dict = bulk_mapping(deconv_result,
@@ -240,7 +245,6 @@ def st_deconv(st_adata,
             **kwargs):
     """
     Deconvolute the cell type fraction from spot expression data with single cell dataset as reference.
-    Reconstruct the spot data using single cell.
 
     Parameters
     ----------
@@ -251,7 +255,7 @@ def st_deconv(st_adata,
         An :class:`~anndata.AnnData` containing the single cell expression.
     annotation_key : string
         The `.obs` key where the single cell annotation is stored. : anndata.AnnData.
-    marker_data : 
+    marker_list : 
         An :class:`~pandas.dataframe` which columns are cell types, rows are marker gene.
     dataset_name : string.
         The prefix of output file.
@@ -286,6 +290,7 @@ def st_deconv(st_adata,
     Returns the deconvolution result and reconstructed st.
     """
     # check the filtered dataset. If exist, skipping preprocessing.
+    st_ori_adata = st_adata.copy()
     if exists(f'{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/sc_data_{dataset_name}.h5ad') and \
     exists(f'{out_dir}/filtered/bulk_data_{dataset_name}.h5ad') and exists(f'{out_dir}/filtered/cells_{dataset_name}.json'):
         pseudo_st = sc.read_h5ad(f"{out_dir}/filtered/pseudo_bulk_{dataset_name}.h5ad")
@@ -293,11 +298,9 @@ def st_deconv(st_adata,
         st_adata = sc.read_h5ad(f"{out_dir}/filtered/bulk_data_{dataset_name}.h5ad")
         with open(f"{out_dir}/filtered/cells_{dataset_name}.json") as json_file:
             common_cell = json.load(json_file)
-        if rename is not None:
-            annotation_key="curated_cell_type"
+        annotation_key="curated_cell_type"
     else:
         #preprocessing
-
         sc_adata, pseudo_st, st_adata,common_cell,annotation_key = pp.preprocessing(st_adata,
                                                                         sc_adata,
                                                                         annotation_key,
@@ -330,7 +333,13 @@ def st_deconv(st_adata,
                                         out_dir=out_dir,
                                         batch_effect=different_source,
                                         is_st=True)
-    st_adata.uns['deconv']=deconv_result
+    threshold = 1 / (n_cell+10)
+    deconv_result[deconv_result < threshold] = 0
+    row_sums = deconv_result.sum(axis=1)
+    df_normalized = deconv_result.div(row_sums, axis=0)
+    st_ori_adata.uns['deconv']=df_normalized
+    df_normalized.to_csv(f"{out_dir}/output/{dataset_name}_prediction_frac_normalized.csv")
+    st_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_st_adata.h5ad')
 
     if mapping_sc:
         #bulk reconstruction

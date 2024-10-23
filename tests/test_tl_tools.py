@@ -1,7 +1,6 @@
 import pytest
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import numpy as np
 import anndata as ad
 import pandas as pd
@@ -28,20 +27,43 @@ def test_read_csv(data_path):
 
 
 @pytest.mark.skip
-@pytest.mark.parametrize("adata_path,bulk_path,marker_path,annotation_key", [("../data/filtered_A36_sample.h5ad",
-                                                                            "../data/reference_bulk_data/A35_sample_stimulated_bulk.txt",
-                                                                            "../data/cell_meta.xlsx",
-                                                                            "curated_cell_type")])
-def test_bulk_deconv(bulk_path,adata_path,marker_path,annotation_key):
+@pytest.mark.parametrize("adata_path,bulk_path,annotation_key", [("C:/Users/wangxueying/project/CytoBulk/case/human_sc/input/filtered_A36_sample.h5ad",
+                                                                    "C:/Users/wangxueying/project/CytoBulk/case/human_sc/input/A35_sample_stimulated_bulk.h5ad",
+                                                                    "Manually_curated_celltype")])
+def test_bulk_deconv(bulk_path,adata_path,annotation_key):
     sc = test_read_adata(adata_path)
-    bulk = test_read_df(bulk_path)
-    marker = pd.read_excel(marker_path, sheet_name = "marker")
-    names = pd.read_excel(marker_path, sheet_name = "rename")
-    names = names.set_index(['Original_name'])['Curated_name'].to_dict()
-    ct.tl.bulk_deconv(bulk_data = bulk,sc_adata = sc,marker_data=marker,
+    bulk = test_read_adata(bulk_path)
+    ct.tl.bulk_deconv(bulk_data = bulk,sc_adata = sc,
                         annotation_key =annotation_key,
-                        rename = names,
-                        out_dir='D:/project/CytoBulk/case/st_human_sc',dataset_name='filtered_A36_sc_35')
+                        out_dir='C:/Users/wangxueying/project/CytoBulk/case/human_sc/out',dataset_name='filtered_A36_sc_35')
+
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("adata_path,st_path,annotation_key", [("C:/Users/wangxueying/project/CytoBulk/case/mouse_mob/input/sc_layer_mob.h5ad",
+                                                                            "C:/Users/wangxueying/project/CytoBulk/case/mouse_mob/input/st_mob.h5ad",
+                                                                            "subtype")])
+def test_st_deconv(st_path,adata_path,annotation_key):
+    sc = test_read_adata(adata_path)
+    st = test_read_adata(st_path)
+    ct.tl.st_deconv(st_adata = st,sc_adata = sc,
+                        annotation_key =annotation_key,
+                        out_dir='C:/Users/wangxueying/project/CytoBulk/case/MOB_layer_cut_add_7181',
+                        dataset_name="MOB_layer")
+
+
+@pytest.mark.parametrize("adata_path,st_path,annotation_key", [("C:/Users/wangxueying/project/CytoBulk/case/PDAC/input/sc_adata.h5ad",
+                                                                "C:/Users/wangxueying/project/CytoBulk/case/PDAC/input/st_adata.h5ad",
+                                                                "cell_type")])
+def test_st_deconv_pdac(st_path,adata_path,annotation_key):
+    sc = test_read_adata(adata_path)
+    st = test_read_adata(st_path)
+    ct.tl.st_deconv(st_adata = st,sc_adata = sc,
+                        annotation_key =annotation_key,
+                        out_dir='C:/Users/wangxueying/project/CytoBulk/case/PDAC/out',
+                        dataset_name="PDAC",
+                        n_cell=15)
+    
 
 
 @pytest.mark.skip
@@ -70,7 +92,7 @@ def test_bulk_mapping(frac_data,sc_adata,bulk_adata,n_cell,annotation_key):
                                                                             "Manually_curated_celltype",
                                                                             './human_sc_st',
                                                                             'human_st')])
-def test_st_deconv(bulk_path,adata_path,marker_path,annotation_key,out_dir,dataset_name):
+def test_st_deconv_human(bulk_path,adata_path,marker_path,annotation_key,out_dir,dataset_name):
     sc = test_read_adata(adata_path)
     st = test_read_adata(bulk_path)
     marker = pd.read_excel(marker_path, sheet_name = "marker")
@@ -105,24 +127,7 @@ def test_st_deconv_hnsc(bulk_path,adata_path,marker_path,annotation_key,out_dir,
                         out_dir=out_dir,
                         dataset_name=dataset_name)
 
-@pytest.mark.skip
-@pytest.mark.parametrize("adata_path,bulk_path,marker_path,annotation_key,out_dir,dataset_name", [("../data/input_data/filtered_A36_sample_sc.h5ad",
-                                                                            "../data/input_data/stimulated_MM_st_10.h5ad",
-                                                                            "../data/input_data/cell_meta.xlsx",
-                                                                            "Manually_curated_celltype",
-                                                                            './human_sc_st',
-                                                                            'human_st')])
-def test_st_deconv(bulk_path,adata_path,marker_path,annotation_key,out_dir,dataset_name):
-    sc = test_read_adata(adata_path)
-    st = test_read_adata(bulk_path)
-    marker = pd.read_excel(marker_path, sheet_name = "marker")
-    names = pd.read_excel(marker_path, sheet_name = "rename")
-    names = names.set_index(['Original_name'])['Curated_name'].to_dict()
-    ct.tl.st_deconv(st_adata = st,sc_adata = sc,marker_data=marker,
-                        annotation_key =annotation_key,
-                        rename = names,
-                        out_dir=out_dir,
-                        dataset_name=dataset_name)
+
 
 
 @pytest.mark.skip
@@ -159,7 +164,7 @@ def test_simulation_st(sc_adata,dataset_name, out_dir, annotation_key,marker_pat
                                                                             "Celltype..minor.lineage.",
                                                                             './MM_5_bulk',
                                                                             'MM_5_bulk')])   
-def test_st_deconv(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset_name):
+def test_st_deconv_new(sc_adata,st_adata,marker_path,annotation_key,out_dir,dataset_name):
     sc = test_read_adata(sc_adata)
     st = test_read_adata(st_adata)
     sc.__dict__['_raw'].__dict__['_var'] = sc.__dict__['_raw'].__dict__['_var'].rename(columns={'_index': 'features'})
@@ -187,7 +192,7 @@ def test_segmentation(st_path):
 
 
 
-
+@pytest.mark.skip
 @pytest.mark.parametrize("sc_adata,st_adata", [("/Users/wangxueying/project/cytobulk/data/sc_adata.h5ad",
                                                 "/Users/wangxueying/project/cytobulk/data/st_adata_sub_4_construction.h5ad")])   
 def test_st_mapping(sc_adata,st_adata):

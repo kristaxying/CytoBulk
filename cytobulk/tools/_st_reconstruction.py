@@ -3,8 +3,9 @@ import pandas as pd
 import random
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
-from ortools.graph import pywrapgraph
 import time
+from .. import utils
+from ortools.graph import pywrapgraph
 
 
 def downsample(data_df, target_count):
@@ -33,7 +34,30 @@ def downsample(data_df, target_count):
 
     return downsampled_df
 
+def estimate_cell_num(st_data, mean_cell_numbers):
+    # Read data
+    expressions = st_data.values.astype(float)
 
+    # Data normalization
+    expressions_tpm_log = utils.normalize_data(expressions)
+
+    # Set up fitting problem
+    RNA_reads = np.sum(expressions_tpm_log, axis=0, dtype=float)
+    mean_RNA_reads = np.mean(RNA_reads)
+    min_RNA_reads = np.min(RNA_reads)
+
+    min_cell_numbers = 1 if min_RNA_reads > 0 else 0
+
+    fit_parameters = np.polyfit(np.array([min_RNA_reads, mean_RNA_reads]),
+                                np.array([min_cell_numbers, mean_cell_numbers]), 1)
+    polynomial = np.poly1d(fit_parameters)
+    cell_number_to_node_assignment = polynomial(RNA_reads).astype(int)
+
+
+    cell_number_to_node_assignment = pd.DataFrame(cell_number_to_node_assignment,index=st_data.columns,columns=["cell_num"])
+
+
+    return cell_number_to_node_assignment
 
 def get_cell_type_fraction(number_of_cells, cell_type_fraction_data):
     # Uncomment commented lines for closer numbers
@@ -91,7 +115,6 @@ def sample_single_cells(scRNA_data, cell_type_data, cell_type_numbers_int, sampl
                 ], axis=0) # ensure at least one copy of each, then sample the rest
 
             else:
-                print(int(cell_type_count_desired))
                 cell_type_selected_index = random.sample(cell_type_index, int(cell_type_count_desired))
 
         
@@ -172,27 +195,26 @@ def partition_indices(indices, split_by_category_list=None, split_by_interval_in
 
 def build_cost_matrix(expressions_tpm_st_log, expressions_tpm_scRNA_log, keep_rate,cell_number_to_node_assignment):
     start_time = time.time()
-    # 初始化 NearestNeighbors 对象
+
     to_assign = expressions_tpm_scRNA_log.shape[1]
     if (to_assign > 100):
         to_assign = int(to_assign * keep_rate)
     print(to_assign)
     knn = NearestNeighbors(n_neighbors=to_assign)
-    # 使用 matrix1 的转置来训练 KNN（每列变为一个点）
+
     fit_results = knn.fit(expressions_tpm_scRNA_log.T.to_numpy())
 
-    # 使用 matrix2 的转置来查询最近邻
+
     distances, indices = knn.kneighbors(expressions_tpm_st_log.T.to_numpy())
 
-    # 初始化输出矩阵
-    d_new = np.zeros((expressions_tpm_st_log.shape[1], expressions_tpm_scRNA_log.shape[1])) # z-by-y 矩阵
+    d_new = np.zeros((expressions_tpm_st_log.shape[1], expressions_tpm_scRNA_log.shape[1])) # z-by-y 
 
-    # 填充输出矩阵
-    for i in range(expressions_tpm_st_log.shape[1]): # 对每一列（每个点）in matrix2
+
+    for i in range(expressions_tpm_st_log.shape[1]): 
         for idx, dist in zip(indices[i], distances[i]):
-            d_new[i, idx] = dist # 只填充找到的邻居的距离
+            d_new[i, idx] = dist 
 
-    # 将结果转换为稀疏矩阵
+
     location_repeat = np.zeros(d_new.shape[1])
     counter = 0
     location_repeat = np.repeat(np.arange(len(cell_number_to_node_assignment)), cell_number_to_node_assignment)
@@ -203,7 +225,6 @@ def build_cost_matrix(expressions_tpm_st_log, expressions_tpm_scRNA_log, keep_ra
     matrix = csr_matrix(distance_repeat)
     end_time = time.time()
     duration = end_time - start_time
-    print("single round cost matrix building:", duration)
     
     return matrix,lap_expressions_tpm_st_log
 
@@ -213,7 +234,6 @@ def lap(matrix):
     assignment_mat = np.full(rows, -1)
     assignment = pywrapgraph.SimpleMinCostFlow()
     
-    # 遍历稀疏矩阵中的非零元素
     for i in range(rows):
         start = matrix.indptr[i]
         end = matrix.indptr[i + 1]
@@ -221,14 +241,13 @@ def lap(matrix):
             j = int(matrix.indices[index])
             cost_value = int(matrix.data[index])
             assignment.AddArcWithCapacityAndUnitCost(i, rows + j, 1, cost_value)
-    
-    # 设置超级源点和超级汇点的供应和需求
+
     for i in range(rows):
         assignment.SetNodeSupply(i, 1)
     for j in range(cols):
         assignment.SetNodeSupply(rows + j, -1)
     
-    # 求解
+
     if assignment.SolveMaxFlowWithMinCost() == assignment.OPTIMAL:
         for i in range(assignment.NumArcs()):
             if assignment.Flow(i) > 0:
@@ -238,7 +257,6 @@ def lap(matrix):
     
     end_time = time.time()
     duration = end_time - start_time
-    print("single round lap solution:", duration)
-    print("single round cost:", assignment.OptimalCost())
+
     
     return assignment_mat, assignment.OptimalCost()

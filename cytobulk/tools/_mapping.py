@@ -7,6 +7,7 @@ from tqdm import tqdm
 from .. import get
 from .. import utils
 import time
+import scanpy as sc
 from multiprocessing import Pool, cpu_count
 import numpy as np
 from ._st_reconstruction import *
@@ -187,12 +188,15 @@ def bulk_mapping(frac_data,
 
 def _run_st_mapping(st_adata,
                     sc_adata,
-                    seed=1,
+                    seed=0,
                     annotation_key='celltype_minor',
-                    sc_downsample=True,
+                    sc_downsample=False,
                     scRNA_max_transcripts_per_cell=1500,
-                    sampling_method="duplicates"):
-
+                    sampling_method="duplicates",
+                    out_dir='.',
+                    project='test',
+                    mean_cell_numbers=8,
+                    save_reconstructed_st=True):
     np.random.seed(seed)
     random.seed(seed)
     # read data
@@ -201,24 +205,32 @@ def _run_st_mapping(st_adata,
     st_data = get.count_data(st_adata)
     sc_data = get.count_data(sc_adata)
     cell_type_data = get.meta(sc_adata,columns=annotation_key)
-    print(cell_type_data)
     coordinates_data = get.coords(st_adata)
     deconv_result = get.meta(st_adata,position_key="uns",columns="deconv")
-    n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="cell_num")
+    intersect_spot = st_data.columns.intersection(deconv_result.index)
+    st_data = st_data.loc[:,intersect_spot]
+    if "cell_num" in st_adata.obsm:
+        n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="cell_num")
+    else:
+        n_cells_per_spot_data = estimate_cell_num(st_data, mean_cell_numbers)
+    n_cells_per_spot_data.to_csv(f"{out_dir}/output/n_cells_per_spot_data.csv")
     cell_number_to_node_assignment = n_cells_per_spot_data.astype(int)
     intersect_genes = st_data.index.intersection(sc_data.index)
+    
     # preprocess
     scRNA_data_sampled = sc_data.loc[intersect_genes, :]
     st_data = st_data.loc[intersect_genes, :]
     # get cell num for each spot
     fraction_spot_num = deconv_result.mul(cell_number_to_node_assignment.values,axis=0)
+    fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num.csv")
     fraction_spot_num = fraction_spot_num.round().astype(int)
-    number_of_cells = np.sum(cell_number_to_node_assignment)
+    #number_of_cells = np.sum(cell_number_to_node_assignment)
     #cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
     #print(cell_type_numbers_int)
     cell_type_numbers_int = fraction_spot_num.sum().to_frame()
+    cell_type_numbers_int.to_csv(f"{out_dir}/output/cell_type_numbers_int.csv")
     cell_type_numbers_int.columns=[0]
-    print(cell_type_numbers_int)
+
     
 
     ### Sample scRNA_data
@@ -232,8 +244,8 @@ def _run_st_mapping(st_adata,
     # sample scRNA_data based on cell type composition
     # cell count in scRNA_data_sampled will be equal to cell count (not spot count) in ST data
     # additionally, the cells in scRNA_data_sampled will be in the order of cell types in cell_type_numbers_int
-    scRNA_data_sampled =\
-        sample_single_cells(scRNA_data_sampled, cell_type_data, cell_type_numbers_int, sampling_method, seed)
+    #scRNA_data_sampled =\
+        #sample_single_cells(scRNA_data_sampled, cell_type_data, cell_type_numbers_int, sampling_method, seed)
 
     print(f"Time to down/up sample scRNA-seq data: {round(time.perf_counter() - t0, 2)} seconds")
 
@@ -243,56 +255,32 @@ def _run_st_mapping(st_adata,
 
     # regenerate pandas dataframe from the normalized data
     scRNA_norm_data = pd.DataFrame(scRNA_norm_np, index=scRNA_data_sampled.index, columns=scRNA_data_sampled.columns)
+
     st_norm_data = pd.DataFrame(st_norm_np, index=st_data.index, columns=st_data.columns)
 
 
-
-
-    ''' 
-    index_sc_list = partition_indices(np.arange(scRNA_data_sampled.shape[1]), shuffle=False)
-
-    subsampled_cell_number_to_node_assignment_list=None
-    index_st_list=None
-    distance_metric="Euclidean"
-    if (index_st_list is not None) and (subsampled_cell_number_to_node_assignment_list is not None):
-        raise ValueError("index_st_list and subsampled_cell_number_to_node_assignment_list cannot both be specified")
-
-    # normalize data; output is an np.ndarray
-    scRNA_norm_np = normalize_data(scRNA_data_sampled.to_numpy())
-    st_norm_np = normalize_data(st_data.to_numpy())
-
-    # regenerate pandas dataframe from the normalized data
-    scRNA_norm_data = pd.DataFrame(scRNA_norm_np, index=scRNA_data_sampled.index, columns=scRNA_data_sampled.columns)
-    st_norm_data = pd.DataFrame(st_norm_np, index=st_data.index, columns=st_data.columns)
-
-    expressions_tpm_scRNA_log = scRNA_norm_data.iloc[:, index_sc_list[0]].to_numpy()
-    expressions_tpm_st_log = st_norm_data.to_numpy()
-    '''  
     # cell types are not specified; estimating from cell type fraction data
     assigned_locations_list = []
     cell_ids_selected_list=[]
+    round_item=0
     for cells in cell_type_numbers_int.index.tolist():
+        print(f"assign cell type {cells}")
         scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
         cell_type_index = cell_type_data[cell_type_data.values == cells].index.tolist()
         cell_type_selected_index=np.intersect1d(scRNA_data_sampled_cell_type,cell_type_index).tolist()
-        #scRNA_data_sampled_cell_type = scRNA_data_sampled.loc[:,cell_type_selected_index]
-        #index_sc_list = partition_indices(np.arange(scRNA_data_sampled_cell_type.shape[1]), shuffle=False)
         st_selected_index = fraction_spot_num[fraction_spot_num[cells]>0].index.to_list()
         cell_number_to_node_assignment_cell_type = fraction_spot_num.loc[st_selected_index,cells]
         expressions_tpm_scRNA_log = scRNA_norm_data.loc[:,cell_type_selected_index]
         expressions_tpm_st_log = st_norm_data.loc[:,st_selected_index]
         sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
         not_assigned_pos = np.arange(np.sum(cell_number_to_node_assignment_cell_type))
-        print("st")
-        print(len(not_assigned_pos))
         not_assigned_cell = np.arange(expressions_tpm_scRNA_log.shape[1])
-        print("sc")
-        print(len(not_assigned_cell))
         lap_expressions_tpm_st_log = expressions_tpm_st_log
         lap_expressions_tpm_scRNA_log = expressions_tpm_scRNA_log
         #total_cell_names = np.array(cell_type_selected_index)
         #total_spot_names = np.array(st_selected_index)
         total_cost = 0
+        back_up_sc = lap_expressions_tpm_scRNA_log
         while (len(not_assigned_pos)):
             cost_matrix,lap_expressions_tpm_st_log = build_cost_matrix(lap_expressions_tpm_st_log,lap_expressions_tpm_scRNA_log, 0.2,cell_number_to_node_assignment_cell_type)
             #res_matrix = np.zeros(lap_expressions_tpm_st_log.shape[1])
@@ -314,95 +302,91 @@ def _run_st_mapping(st_adata,
             print("assignment left: ", not_assigned_num)
             total_cost += cost
             lap_expressions_tpm_st_log = lap_expressions_tpm_st_log.iloc[:, not_assigned_pos]
-            lap_expressions_tpm_scRNA_log= lap_expressions_tpm_scRNA_log.iloc[:, not_assigned_cell]
+            if (len(not_assigned_cell)==0)&(len(not_assigned_pos)>0):
+                lap_expressions_tpm_scRNA_log = back_up_sc
+            else:
+                lap_expressions_tpm_scRNA_log = lap_expressions_tpm_scRNA_log.iloc[:, not_assigned_cell]
             not_assigned_cell = np.arange(lap_expressions_tpm_scRNA_log.shape[1])
             cell_number_to_node_assignment_cell_type = np.array([1]*len(not_assigned_pos))
             not_assigned_pos = np.arange(np.sum(cell_number_to_node_assignment_cell_type))
             
-        #print(cost_matrix)
-        #location_repeat = np.zeros(expressions_tpm_st_log.shape[1])
-        ##location_repeat = np.repeat(np.arange(len(cell_number_to_node_assignment_cell_type)), cell_number_to_node_assignment_cell_type)
-        #location_repeat = location_repeat.astype(int)
-        #print(expressions_tpm_st_log.columns[location_repeat])
-        #expressions_tpm_st_log = expressions_tpm_st_log.loc[:, expressions_tpm_st_log.columns[location_repeat]]
-        #print(expressions_tpm_st_log)
     reconstructed_sc = pd.DataFrame({"spot_id":assigned_locations_list,"cell_id":cell_ids_selected_list})
-    print(reconstructed_sc)
-        #while (len(not_assigned_pos)):
+    reconstructed_sc.to_csv(f"{out_dir}/output/{project}_reconstructed_st.csv")
+    if save_reconstructed_st:
+        spot_expression = {}
+        for spot_id in np.unique(reconstructed_sc['spot_id']):
+            cells_in_spot = reconstructed_sc[reconstructed_sc['spot_id'] == spot_id]['cell_id']
+            expression_sum = scRNA_data_sampled[cells_in_spot].sum(axis=1)
+            spot_expression[spot_id] = expression_sum
+        new_adata = sc.AnnData(X=pd.DataFrame(spot_expression).T.values, var=pd.DataFrame(index=scRNA_data_sampled.index))
+        new_adata.obs_names = list(spot_expression.keys())
+        new_adata.var_names = scRNA_norm_data.index
+        st_data=st_data[new_adata.obs_names]
+        new_adata.layers['original_st'] = st_data.values.T
+        new_adata.obsm['spatial'] = coordinates_data.loc[new_adata.obs_names,:].values
+        new_adata.uns = st_adata.uns
+        new_adata.write(f"{out_dir}/output/reconstructed_{project}_st.h5ad")
 
-    '''
-        if (len(st_selected_index) > 0) and (len(cell_type_selected_index) > 0):
-            assigned_locations, cell_ids_selected =\
-                apply_linear_assignment(scRNA_data_sampled_cell_type, st_data_sub, sub_coordinates_data, cell_number_to_node_assignment_cell_type,
-                                        solver_method, solver, seed, distance_metric, number_of_processors,index_sc_list)
-            assigned_locations_list.append(assigned_locations)
-            cell_ids_selected_list.append(cell_ids_selected)
-
-
-    for cells in cell_type_numbers_int.index.tolist():
-        scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
-        cell_type_index = cell_type_data[cell_type_data[annotation_key] == cells].index.tolist()
-        cell_type_selected_index=np.intersect1d(scRNA_data_sampled_cell_type,cell_type_index).tolist()
-        scRNA_data_sampled_cell_type = scRNA_data_sampled.loc[:,cell_type_selected_index]
-        index_sc_list = partition_indices(np.arange(scRNA_data_sampled_cell_type.shape[1]), shuffle=False)
-        st_selected_index = fraction_spot_num[fraction_spot_num[cells]>0].index.to_list()
-        cell_number_to_node_assignment_cell_type = fraction_spot_num.loc[st_selected_index,cells]
-        st_data_sub=st_data.loc[:,st_selected_index]
-        sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
-        if (len(st_selected_index) > 0) and (len(cell_type_selected_index) > 0):
-            assigned_locations, cell_ids_selected =\
-                apply_linear_assignment(scRNA_data_sampled_cell_type, st_data_sub, sub_coordinates_data, cell_number_to_node_assignment_cell_type,
-                                        solver_method, solver, seed, distance_metric, number_of_processors,index_sc_list)
-            assigned_locations_list.append(assigned_locations)
-            cell_ids_selected_list.append(cell_ids_selected)
-    assigned_locations = pd.concat(assigned_locations_list)
-    cell_ids_selected = np.concatenate(cell_ids_selected_list, axis=0)
+    return reconstructed_sc
 
     
-                
+
+def st_mapping(st_adata,sc_adata,out_dir,project,annotation_key,**kwargs):
+    """
+    Run spatial transcriptomics mapping with single-cell RNA-seq data.
+
+    This function maps spatial transcriptomics (ST) data to single-cell RNA-seq (scRNA-seq) data. It aligns cell type compositions and estimates spatial distributions.
+
+    Parameters
+    ----------
+    st_adata : anndata.AnnData
+        An :class:`~anndata.AnnData` object containing spatial transcriptomics data.
     
-       
-    print(f"Total time to run CytoSPACE core algorithm: {round(time.perf_counter() - t0_core, 2)} seconds")
-    with open(fout_log,"a") as f:
-        f.write(f"Time to run CytoSPACE core algorithm: {round(time.perf_counter() - t0_core, 2)} seconds\n")
-
-    ### Save results
-    print('Saving results ...')
+    sc_adata : anndata.AnnData
+        An :class:`~anndata.AnnData` object containing single-cell RNA-seq data.
     
-    # identify unmapped spots
-    mapped_spots = assigned_locations.index
-    unmapped_spots = np.setdiff1d(list(all_spot_ids), list(mapped_spots)).tolist()
-
-    if len(unmapped_spots) > 0:
-        unassigned_locations  = coordinates_data.loc[unmapped_spots]
-        unassigned_locations.index = unassigned_locations.index.str.replace("SPOT_", "")
-        unassigned_locations["Number of cells"] = 0
-        unassigned_locations.to_csv(f"{output_path}/{output_prefix}unassigned_locations.csv", index=True)
-        print(f"{len(unmapped_spots)} spots had no cells mapped to them. Saved unfiltered version of assigned locations to {output_path}/{output_prefix}unassigned_locations.csv")
-
+    seed : int, optional (default: 0)
+        Seed for random number generation to ensure reproducibility.
     
+    annotation_key : string, optional (default: 'celltype_minor')
+        Key in `sc_adata` for cell type annotations.
     
-    save_results(output_path, output_prefix, cell_ids_selected, scRNA_data_sampled if sampling_method == "place_holders" else scRNA_data,
-                 assigned_locations, cell_type_data, sampling_method, single_cell)
+    sc_downsample : bool, optional (default: False)
+        Whether to downsample scRNA-seq data to a maximum number of transcripts per cell.
+    
+    scRNA_max_transcripts_per_cell : int, optional (default: 1500)
+        Maximum number of transcripts per cell for downsampling.
+    
+    sampling_method : string, optional (default: 'duplicates')
+        Method for sampling single cells based on cell type composition.
+    
+    out_dir : string, optional (default: '.')
+        Directory to save output files.
+    
+    project : string, optional (default: 'test')
+        Project name for output file naming.
+    
+    mean_cell_numbers : int, optional (default: 8)
+        Average number of cells per spot used for estimation.
+    
+    save_reconstructed_st : bool, optional (default: True)
+        Whether to save the reconstructed spatial transcriptomics data.
 
-    if not plot_off:
-        if single_cell:
-            plot_results(output_path, output_prefix, max_num_cells=max_num_cells_plot, single_cell_ST_mode=True)
-        else:
-            plot_results(output_path, output_prefix, coordinates_data=coordinates_data, geometry=geometry, num_cols=num_column, max_num_cells=max_num_cells_plot)
-
-    print(f"Total execution time: {round(time.perf_counter() - start_time, 2)} seconds")
-    with open(fout_log,"a") as f:
-        f.write(f"Total execution time: {round(time.perf_counter() - start_time, 2)} seconds")
-    '''
-
-
-def st_mapping(st_adata,sc_adata):
+    Returns
+    -------
+    reconstructed_sc : pandas.DataFrame
+        DataFrame containing the mapping of single-cell IDs to spatial spot IDs.
+    """
     start_t = time.perf_counter()
     print("=================================================================================================")
     print('Start to mapping bulk data with single cell dataset.')
-    _run_st_mapping(st_adata,sc_adata)
+    reconstructed_sc=_run_st_mapping(st_adata = st_adata,
+                                     sc_adata = sc_adata,
+                                     out_dir = out_dir,
+                                     project = project,
+                                     annotation_key=annotation_key,
+                                     **kwargs)
     print(f'Time to finish mapping: {round(time.perf_counter() - start_t, 2)} seconds')
     print("=========================================================================================================================================")
     
-    return 
+    return reconstructed_sc

@@ -254,14 +254,12 @@ def preprocessing(bulk_data,
             raise ValueError(f"`A` can only be a dict but is a {rename.__class__}!")
         
         sc_adata.obs['curated_cell_type'] = sc_adata.obs.apply(lambda x: rename[x[annotation_key]] if x[annotation_key] in rename else "invalid", axis=1)
-        annotation_key = 'curated_cell_type'
-
-        print(sc_adata)
+    else:
+        sc_adata.obs.rename(columns={annotation_key: 'curated_cell_type'}, inplace=True)
         print("Finish renaming, the curated annotation could be found in sc_adata.obs['curated_cell_type']")
-
+    annotation_key = 'curated_cell_type'
     print('================================================================================================================')
     print('------------------Start to check cell type annotation and quality control...------------------')
-    print(sc_adata)
     sc_adata = sc_adata[sc_adata.obs[annotation_key]!="invalid",:]
     if is_st:
         sc_adata, bulk_adata, common_gene = qc_st_sc(bulk_data,sc_adata,out_dir=out_dir,save=save,dataset_name=dataset_name,**kwargs)

@@ -40,8 +40,12 @@ def get_meta(
 
 
 def get_coords(visium_adata):
-    df_coords = visium_adata.obs[['array_row', 'array_col']]
-    df_coords.columns = ['row','col']
+    if all(item in visium_adata.obs.columns for item in ['array_row', 'array_col']):
+        df_coords = visium_adata.obs[['array_row', 'array_col']]
+        df_coords.columns = ['row','col']
+    else:
+        df_coords = pd.DataFrame(visium_adata.obsm['spatial'],index=visium_adata.obs_names,columns=['row','col'])
+
     df_coords.index.name = 'SpotID'
 
     return df_coords

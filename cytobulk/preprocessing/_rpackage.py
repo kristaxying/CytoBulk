@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import time
 ## IF R path isn't set as system path, using followings to set the config.
-
+import os
+os.environ['R_HOME'] = r'C:\Program Files\R\R-4.4.1'
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from .. import utils
@@ -40,7 +41,10 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
     # format expression data
     exp = get.count_data(sc_adata)
     sc_anno = pd.DataFrame(sc_adata.obs[anno_key])
-    sc_anno.index.name="cell"
+    #sc_anno.index.name="cell_ID"
+    #sc_anno['cell_ID'] = sc_anno.index
+    sc_anno.insert(0, 'cell_ID', sc_anno.index)
+    
     # get r script path
     current_file_dir = os.path.dirname(__file__)
 
@@ -56,6 +60,7 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
     except KeyError:
         print("run_giotto function is not found in the R environment.")
     # auto trans from pandas to r dataframe
+
     pandas2ri.activate()
     robjects.r.run_giotto(exp,sc_anno,python_path,out_dir,project)
     # stop auto trans from pandas to r dataframe

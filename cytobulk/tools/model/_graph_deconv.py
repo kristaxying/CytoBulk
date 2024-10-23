@@ -94,16 +94,19 @@ class GraphConv(nn.Module):
         L = GraphConv.get_laplacian(graph, self.normalize)
         L = L.cpu()
         lam, u = np.linalg.eig(L)
-        lam = torch.FloatTensor(lam)
-        lam = lam.to(self.device)
+        q1 = np.percentile(lam.real,50)
+        #lam = torch.from_numpy(lam)
+        #lam = lam.to(self.device)
         #lam= torch.diag(lam)
-        torch.set_printoptions(precision=3,sci_mode=False)
+        #torch.set_printoptions(precision=3,sci_mode=False)
+        lam=lam.real
         q1 = np.percentile(lam,50)
-
         lam[lam<q1]=0
+        lam = torch.from_numpy(lam)
         #print(lam)
-        lam= torch.diag(lam)
-        u = torch.FloatTensor(u).to(self.device)
+        lam= torch.diag(lam).to(self.device)
+        #u = torch.from_numpy(u).to(self.device)
+        u = u.to(self.device)
         lam = 2*((lam - torch.min(lam).to(self.device)) / (torch.max(lam).to(self.device) - torch.min(lam).to(self.device))) - torch.eye(lam.size(0)).to(self.device)
         mul_L = self.cheb_polynomial(lam).unsqueeze(1)
 
@@ -216,7 +219,7 @@ class InferDataset(torch.utils.data.Dataset):
 
 def get_G(cell_name, sc_adata,annotation_key):
         def _get_mat_YW(sc_df):
-            mat_Y = torch.FloatTensor(sc_df.values)
+            mat_Y = torch.from_numpy(sc_df.values)
             mat_W = mat_Y @ mat_Y.t()
             return mat_W
 
@@ -291,7 +294,7 @@ def train_cell_loop_once(cell,
         #select_gene(expression, sel_gene)
         train_data = expression.values
         train_label = fraction[cell].values
-        full_dataset = torch.utils.data.TensorDataset(torch.FloatTensor(train_data), torch.FloatTensor(train_label))
+        full_dataset = torch.utils.data.TensorDataset(torch.from_numpy(train_data), torch.from_numpy(train_label))
         train_size = int(batch_size * (0.85 * len(full_dataset) // batch_size))
         valid_size = len(full_dataset) - train_size      
         best_cosin = 0

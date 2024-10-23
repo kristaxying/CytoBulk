@@ -205,10 +205,10 @@ def filter_samples(pseudo_bulk, bulk_adata,data_num,num=20,cut_off=0.9,loc=None)
     similarity_matrix = cosine_similarity(bulk_matrix,pseudo_matrix)
     top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
     selected_indices = np.unique(top_k_indices.flatten())
-    if 10*similarity_matrix.shape[0]<2000:
+    if 5*similarity_matrix.shape[0]<2000:
         target_num = 2000
     else:
-        target_num=10*similarity_matrix.shape[0]
+        target_num=5*similarity_matrix.shape[0]
     print(target_num)
     while len(selected_indices)<target_num:
           num=int(num*1.5)

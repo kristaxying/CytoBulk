@@ -3,7 +3,6 @@ import pandas as pd
 import random
 import time
 import warnings
-from ortools.graph import pywrapgraph
 from scipy.spatial import distance
 
 
