@@ -116,7 +116,6 @@ def bulk_deconv(bulk_data,
                 trans_method="log",
                 save = True,
                 save_figure=True,
-                mapping_sc=False,
                 n_cell=100,
                 **kwargs):
     """
@@ -201,7 +200,7 @@ def bulk_deconv(bulk_data,
                                                                         **kwargs)
     #deconvolution
     if exists(f'{out_dir}/output/{dataset_name}_prediction_frac.csv'):
-        deconv_result = pd.read_csv(f'{out_dir}/output/{dataset_name}_prediction_frac.csv',index_col=0,header=True)
+        deconv_result = pd.read_csv(f'{out_dir}/output/{dataset_name}_prediction_frac.csv',index_col=0)
     else:
         deconv_result = _bulk_sc_deconv(bulk_adata, 
                                         pseudo_bulk, 
@@ -215,14 +214,6 @@ def bulk_deconv(bulk_data,
     bulk_ori_adata.uns['deconv']=df_normalized
     df_normalized.to_csv(f"{out_dir}/{dataset_name}_prediction_frac_normalized.csv")
     bulk_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_bulk_adata.h5ad')
-    if mapping_sc:
-        #bulk reconstruction
-        bulk_adata,sc_mapping_dict = bulk_mapping(deconv_result,
-                                                sc_adata,
-                                                bulk_adata,
-                                                n_cell,
-                                                annotation_key)
-        bulk_adata.obsm['mapping_dict'] = pd.DataFrame(sc_mapping_dict)
 
     return deconv_result,bulk_adata
 
@@ -240,7 +231,6 @@ def st_deconv(st_adata,
             trans_method="log",
             save = True,
             save_figure=True,
-            mapping_sc=False,
             n_cell=10,
             **kwargs):
     """
@@ -276,8 +266,6 @@ def st_deconv(st_adata,
         Whether save the result data during each step. If saving, the processing may be skipped.
     save_figure : boolean, optional
         Whether save figures during preprocessing. eg. scatter plot of pca data.
-    mapping_sc : boolean, optional
-        Whether reconstruct the bulk data with single cell data.
     n_cell : int, optional
         The number of cells within each bulk.
     **kwargs : 
@@ -340,8 +328,3 @@ def st_deconv(st_adata,
     st_ori_adata.uns['deconv']=df_normalized
     df_normalized.to_csv(f"{out_dir}/output/{dataset_name}_prediction_frac_normalized.csv")
     st_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_st_adata.h5ad')
-
-    if mapping_sc:
-        #bulk reconstruction
-        st_adata,sc_mapping_dict = st_mapping(st_adata,sc_adata,solution_method="cytospace")
-        st_adata.obsm['mapping_dict'] = pd.DataFrame(sc_mapping_dict)

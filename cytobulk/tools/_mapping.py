@@ -37,8 +37,7 @@ def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict
 
     return sample_ori.tolist(), sample.tolist(), mapped_cor, sc_mapping_dict
 
-def bulk_mapping(frac_data,
-                bulk_adata,
+def bulk_mapping(bulk_adata,
                 sc_adata,
                 n_cell=100,
                 annotation_key="curated_cell_type",
@@ -46,85 +45,104 @@ def bulk_mapping(frac_data,
                 sc_layer=None,
                 reorder=True,
                 multiprocessing=True,
-                cpu_num=cpu_count()-2,
-                dataset_name="",
+                cpu_num=cpu_count()-4,
+                project="",
                 out_dir=".",
                 normalization=True,
                 filter_gene=True,
                 cut_off_value=0.6,
                 save=True):
     """
-    Reconstruct the bulk data with the single cell data and the cell type fraction file as the reference.
+    Reconstruct bulk data using single-cell data and cell type fractions.
+
+    This function maps bulk expression data to single-cell expression data using
+    cell type fraction information and various preprocessing steps.
 
     Parameters
     ----------
-    frac_data: dataframe
-        An :class:`~pandas.dataframe` containing the cell type feaction. Columns are cell type, rows are samples.
-    bulk_adata: anndata.AnnData
-        An :class:`~anndata.AnnData` containing the input bulk.
-    sc_adata: anndata.AnnData
-        An :class:`~anndata.AnnData` containing the single cell expression.
-    n_cell: int, optional
-        The number of cells contained in each sample.
-    annotation_key: string, optional
-        The `.obs` key where the single cell annotation is stored.: anndata.AnnData.
-    bulk_layer: string, optional
-        The layer to store the bulk expression.
-    sc_layer: string, optional
-        The layer to store the sc expression.
-    reorder: boolean
-        Reorder the bulk data and sc data to ensure the same gene order.
-    multiprocessing: boolean, optional
-        Using multiprocess or not.
-    cpu_num: int, optional
-        The number of cpu used in multiprocessing.
-    project: string, optional
-        The prefix of output file.
-    out_dir: string, optional
-        The path to store the output data.
-    normalization: boolean, optional
-        Cpm normalization on both sc and bulk data or not.
-    filter_gene: boolean, optional
-        Keep genes with high cosin similarity or not.
-    cut_off_value: float, optional
-        The cosin similarity value to filter the reconstructed genes.
-    save: boolean, optional
-        Save the result file or not.
-        
+    bulk_adata : anndata.AnnData
+        An :class:`~anndata.AnnData` object containing the input bulk data.
+
+    sc_adata : anndata.AnnData
+        An :class:`~anndata.AnnData` object containing the single-cell expression data.
+
+    n_cell : int, optional
+        Number of cells per bulk sample.
+
+    annotation_key : string, optional
+        Key in `sc_adata.obs` for single-cell annotations.
+
+    bulk_layer : string, optional
+        Layer in `bulk_adata` to use for bulk expression data.
+
+    sc_layer : string, optional
+        Layer in `sc_adata` to use for single-cell expression data.
+
+    reorder : bool, optional (default: True)
+        Whether to reorder genes to ensure consistency between bulk and single-cell data.
+
+    multiprocessing : bool, optional (default: True)
+        Whether to use multiprocessing for efficiency.
+
+    cpu_num : int, optional
+        Number of CPUs to use if multiprocessing is enabled.
+
+    project : string, optional
+        Prefix for output files.
+
+    out_dir : string, optional
+        Directory to store output files.
+
+    normalization : bool, optional (default: True)
+        Whether to apply CPM normalization to data.
+
+    filter_gene : bool, optional (default: True)
+        Whether to filter genes based on cosine similarity.
+
+    cut_off_value : float, optional (default: 0.6)
+        Threshold for cosine similarity when filtering genes.
+
+    save : bool, optional (default: True)
+        Whether to save the result files.
+
     Returns
     -------
-    Returns the preprocessed bulk data (adata) , stimualted bulk data and sc data (adata).
+    bulk_adata : anndata.AnnData
+        The processed bulk data with mapping results.
 
+    df : pandas.DataFrame
+        DataFrame containing the mapping of bulk samples to single-cell IDs.
     """
     
     start_t = time.perf_counter()
     print("=================================================================================================")
     print('Start to mapping bulk data with single cell dataset.')
     # format data
-    cell_prop = frac_data.values
+    cell_prop = bulk_adata.uns['deconv']
     cell_matrix = np.floor(n_cell * cell_prop)
     cell_num = cell_matrix.astype(int)
     meta_data = sc_adata.obs[[annotation_key]]
     meta_dict = meta_data.groupby(meta_data[annotation_key]).groups
     for key, value in meta_dict.items():
         meta_dict[key] = np.array(value)
-    cellname_list=frac_data.columns
-    cell_list = np.array(sc_adata.obs.index)
+    cellname_list=cell_prop.columns
+    cell_list = np.array(sc_adata.obs_names)
     #normalization
-    if normalization:
-        sc_adata=utils.normalization_cpm(sc_adata,scale_factors=10000,trans_method="log")
-        bulk_adata=utils.normalization_cpm(bulk_adata,scale_factors=10000,trans_method="log")
     bulk_adata.layers['mapping_ori'] = bulk_adata.X.copy()
+    if normalization:
+        sc_adata=utils.normalization_cpm(sc_adata,scale_factors=100000,trans_method="log")
+        bulk_adata=utils.normalization_cpm(bulk_adata,scale_factors=100000,trans_method="log")
+    bulk_adata.layers['mapping_nor'] = bulk_adata.X.copy()
     input_sc_data = get.count_data(sc_adata,counts_location=sc_layer)
     bulk_data = get.count_data(bulk_adata,counts_location=bulk_layer)
-    
+
     if reorder:
-        gene_order = input_sc_data.index.tolist()
-        bulk_data = bulk_data.loc[gene_order]
+        intersect_gene = input_sc_data.index.intersection(bulk_data.index)
+        input_sc_data = input_sc_data.loc[intersect_gene,:]
+        bulk_data = bulk_data.loc[intersect_gene,:]
 
     sc_data = utils.normal_center(input_sc_data)
     bulk_data = utils.normal_center(bulk_data)
-
     bulk_adata.layers['normal_center'] = bulk_data.T.values
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))
     mapped_cor = []
@@ -135,8 +153,9 @@ def bulk_mapping(frac_data,
             cpu_num = cpu_count()
         # compute person correlation and select sc according to person correlation.
         print(f"multiprocessing mode, cpu count is {cpu_num}")
+        print(cell_num)
         with Pool(cpu_num) as p:
-            results = p.starmap(_bulk_mapping_parallel, [(i, cell_num[i], bulk_data, sc_data, cell_list, meta_dict, cellname_list,input_sc_data) for i in range(len(cell_num))])
+            results = p.starmap(_bulk_mapping_parallel, [(i, cell_num.iloc[i,:], bulk_data, sc_data, cell_list, meta_dict, cellname_list, input_sc_data) for i in range(cell_num.shape[0])])
         # postprocessing
         for i, (sample_ori_i,sample_i, mapped_cor_i, sc_mapping_dict_i) in enumerate(results):
             sample_ori[i]= np.array(sample_ori_i)
@@ -160,8 +179,7 @@ def bulk_mapping(frac_data,
             mapped_cor_i = utils.pear(sample,bulk_data[name].values).item()
             mapped_cor.append(mapped_cor_i)
     print('initial mapping solution:',"min correlation", min(mapped_cor),"average correlation",np.mean(mapped_cor),"max correlation", max(mapped_cor))
-    bulk_adata.obsm['cell_fraction'] = frac_data
-    bulk_adata.obsm['cell_number']=pd.DataFrame(cell_matrix,index=frac_data.index,columns=frac_data.columns)
+    bulk_adata.obsm['cell_number']=pd.DataFrame(cell_matrix,index=cell_prop.index,columns=cell_prop.columns)
     bulk_adata.layers['mapping'] = sample/n_cell
     bulk_adata.layers['mapping_ori'] = sample_ori/n_cell
     if filter_gene:
@@ -181,10 +199,12 @@ def bulk_mapping(frac_data,
     print(f'Time to finish mapping: {round(time.perf_counter() - start_t, 2)} seconds')
     print("=========================================================================================================================================")
     if save:
-        out_dir = utils.check_paths(f'{out_dir}/filtered')
-        bulk_adata.write_h5ad(f"{out_dir}/bulk_data_{dataset_name}.h5ad")
+        out_dir = utils.check_paths(f'{out_dir}/output')
+        df = pd.DataFrame([(k, v) for k, lst in sc_mapping_dict.items() for v in lst], columns=['sample_id', 'cell_id'])
+        df.to_csv(f"{out_dir}/bulk_data_{project}_mapping.csv")
+        bulk_adata.write_h5ad(f"{out_dir}/bulk_data_{project}_mapping.h5ad")
 
-    return bulk_adata,sc_mapping_dict
+    return bulk_adata,df
 
 def _run_st_mapping(st_adata,
                     sc_adata,
@@ -331,7 +351,12 @@ def _run_st_mapping(st_adata,
 
     
 
-def st_mapping(st_adata,sc_adata,out_dir,project,annotation_key,**kwargs):
+def st_mapping(st_adata,
+               sc_adata,
+               out_dir,
+               project,
+               annotation_key,
+               **kwargs):
     """
     Run spatial transcriptomics mapping with single-cell RNA-seq data.
 

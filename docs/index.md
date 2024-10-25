@@ -2,7 +2,7 @@
 
 ## CytoBulk Library
 
-![network_structure](./assets/network_struct.png "Network Structure")
+![network_structure](./assets/figure1.png "CytoBulk workflow")
 
 The Python module CytoBulk is a self-contained machine learning framework. 
 

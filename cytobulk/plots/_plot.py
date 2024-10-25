@@ -313,7 +313,11 @@ def plot_paired_violin(adata,
 
 
 
-def plot_reconstruction(adata,out_dir,project_name="test",rotation_angle=None,spot_size=0.5):
+def plot_reconstruction(adata,
+                        out_dir,
+                        project_name="test",
+                        rotation_angle=None,
+                        spot_size=0.5):
     """
     Plot reconstructed spatial transcriptomics data with correlation analysis.
 

@@ -66,7 +66,7 @@ def test_st_mapping_sub5(sc_adata,st_adata):
                      out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub6",
                      project="sub6",
                      annotation_key='cell_type')
-
+@pytest.mark.skip
 @pytest.mark.parametrize("sc_adata,st_adata", [("C:/Users/wangxueying/project/CytoBulk/case/10x/input/sc_adata.h5ad",
                                                 "C:/Users/wangxueying/project/CytoBulk/case/10x/sub3/st_adata_sub_3_deconv.h5ad")])   
 def test_st_mapping_sub3(sc_adata,st_adata):
@@ -86,3 +86,16 @@ def test_st_mapping_sub5(sc_adata,st_adata):
                      out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub5",
                      project="sub5",
                      annotation_key='cell_type')
+    
+      
+@pytest.mark.parametrize("sc_adata,bulk_adata", [("C:/Users/wangxueying/project/CytoBulk/case/human_sc/input/filtered_A36_sample.h5ad",
+                                                "C:/Users/wangxueying/project/CytoBulk/case/human_sc/out/output/filtered_A36_sc_35_bulk_adata.h5ad")])   
+def test_bulk_mapping_sub(sc_adata,bulk_adata):
+    sc = test_read_adata(sc_adata)
+    bulk = test_read_adata(bulk_adata)
+    ct.tl.bulk_mapping(bulk_adata = bulk,
+                       sc_adata = sc,
+                        out_dir="C:/Users/wangxueying/project/CytoBulk/case/human_sc/out",
+                        project="human_sc_bulk",
+                        n_cell=1000,
+                        annotation_key='Manually_curated_celltype')

@@ -20,3 +20,16 @@ def bulk_mapping(frac_data,
                 save=True)
 ```
 ::: cytobulk.tools._mapping.bulk_mapping
+
+
+
+----------
+```python
+def st_mapping(st_adata,
+               sc_adata,
+               out_dir,
+               project,
+               annotation_key,
+               **kwargs)
+```
+::: cytobulk.tools._mapping.st_mapping

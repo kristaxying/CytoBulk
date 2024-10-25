@@ -51,7 +51,7 @@ def test_st_deconv(st_path,adata_path,annotation_key):
                         out_dir='C:/Users/wangxueying/project/CytoBulk/case/MOB_layer_cut_add_7181',
                         dataset_name="MOB_layer")
 
-
+@pytest.mark.skip
 @pytest.mark.parametrize("adata_path,st_path,annotation_key", [("C:/Users/wangxueying/project/CytoBulk/case/PDAC/input/sc_adata.h5ad",
                                                                 "C:/Users/wangxueying/project/CytoBulk/case/PDAC/input/st_adata.h5ad",
                                                                 "cell_type")])
@@ -179,15 +179,17 @@ def test_st_deconv_new(sc_adata,st_adata,marker_path,annotation_key,out_dir,data
                         different_source=True,
                         n_cell=5)
 
-@pytest.mark.skip
-@pytest.mark.parametrize("st_path", [("E:/CytoBulk/plot_data/BRCA_case/10x/case_data/st_adata_sub_6.h5ad")])   
+
+@pytest.mark.parametrize("st_path", [("C:/Users/wangxueying/project/CytoBulk/case/ER2/ST_CID4535_374.h5ad")])   
 def test_segmentation(st_path):
+    st = test_read_adata(st_path)
     ret,cell_pos = ct.tl.predict_cell_num(
-                    st_path,
-                    diameter=0,
+                    st,
+                    out_dir="C:/Users/wangxueying/project/CytoBulk/case/ER2",
+                    diameter=None,
                     save_png_result=False,
                     model_type='cyto3',
-                    cellprob_threshold=.8
+                    cellprob_threshold=0.4
                 )
 
 

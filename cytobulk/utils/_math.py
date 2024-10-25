@@ -5,6 +5,7 @@ from scipy.sparse import issparse, csr_matrix, csc_matrix
 from sklearn.utils.sparsefuncs import inplace_column_scale, inplace_row_scale
 from sklearn.preprocessing import StandardScaler
 import numba
+import sys
 # import mkl
 from numba import njit, prange
 import anndata._core.views
@@ -146,7 +147,7 @@ def normal_center_df(data):
 
     
 def pear(A,B):
-    tmp = np.corrcoef(A.flatten(), B.flatten())
+    tmp = np.corrcoef(A, B)
     return tmp[0,1] 
 
 def calculate_distance(matrix1,matrix2):

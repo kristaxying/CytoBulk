@@ -1,4 +1,4 @@
-#from cellpose import models, io, plot
+from cellpose import models, io, plot
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -14,41 +14,66 @@ class Const:
 def rgb2grey(img: np.ndarray):
     return np.dot(img[...,:3], [0.2989, 0.5870, 0.1140])
 
-def predict_cell_num(st_adata_path,
-                     diameter,
+def predict_cell_num(st_adata,
+                     library_ids="library_ids",
+                     project="test",
+                     diameter=None,
                      save_png_result=False,
                      model_type='cyto3',
-                     out_path='./',
-                     cellprob_threshold=1,
+                     out_dir='.',
+                     cellprob_threshold=0.4,
                      save=True):
     
     '''
-    description.
-    Params
-    -----
-    st_adata_path : string 
-        the path of ST adata.
-    crop_r : int 
-        the length of the tile. each tile will be a square.
-    save_png_result : None or string
-        if None, do not save the segmentation result to a png file; otherwise, save the png to the provided file path name.
+    Predicts cell numbers from spatial transcriptomics data using Cellpose.
+
+    Parameters
+    ----------
+    st_adata : AnnData
+        Spatial transcriptomics AnnData object.
+
+    library_ids : string
+        Identifier for the library in the AnnData object.
+
+    diameter : int, optional
+        Estimated diameter of the cells to be detected.
+
+    save_png_result : bool, optional
+        If True, saves the segmentation results as PNG files.
+
+    model_type : string, optional
+        Type of Cellpose model to use. Default is 'cyto3'.
+
+    out_path : string, optional
+        Directory to save the output files. Default is './'.
+
+    cellprob_threshold : float, optional
+        Cell probability threshold for Cellpose. Default is 1.
+
+    save : bool, optional
+        If True, saves the results to an h5ad file. Default is True.
 
     Returns
-    -----
+    -------
+    st_adata : AnnData
+        Updated AnnData object with predicted cell numbers.
+
+    cell_pos : pandas.DataFrame
+        DataFrame containing cell positions.
     '''
     print('-----Initializing model...')
     model = models.Cellpose(model_type=model_type)
     ch = [0, 0] # NOTE: here we set all images to greyscale
-    st_adata = sc.read_h5ad(st_adata_path)
 
     print('-----Reading files...')
-    img = rgb2grey(st_adata.uns['spatial']['CytAssist_FFPE_Human_Breast_Cancer']['images']['hires'])
-    print(img.shape)
+    img = rgb2grey(st_adata.uns['spatial'][library_ids]['images']['hires'])
 
-    coord = st_adata.obsm['spatial']*st_adata.uns['spatial']['CytAssist_FFPE_Human_Breast_Cancer']['scalefactors']['tissue_hires_scalef']
+
+    coord = st_adata.obsm['spatial']*st_adata.uns['spatial'][library_ids]['scalefactors']['tissue_hires_scalef']
     spots = pd.DataFrame(coord, columns=["X", "Y"])
-    crop_r = int(st_adata.uns['spatial']['CytAssist_FFPE_Human_Breast_Cancer']['scalefactors']['fiducial_diameter_fullres']*st_adata.uns['spatial']['CytAssist_FFPE_Human_Breast_Cancer']['scalefactors']['tissue_hires_scalef'])
-    half_r = crop_r // 2 + 2
+    crop_r = int(st_adata.uns['spatial'][library_ids]['scalefactors']['spot_diameter_fullres']*st_adata.uns['spatial'][library_ids]['scalefactors']['tissue_hires_scalef'])
+    #crop_r = int(st_adata.uns['spatial'][library_ids]['scalefactors']['spot_diameter_fullres'])
+    half_r = crop_r // 2 + 5
     print(half_r)
     print('-----Predicting cell number...')
     ret = pd.DataFrame(data={'X':[], 'Y':[], 'cell_num':[]})
@@ -74,9 +99,11 @@ def predict_cell_num(st_adata_path,
             plot.show_segmentation(fig, tile, masks, flows[0], channels=ch)
             plt.tight_layout()
             #plt.savefig(save_png_result.replace('.', f'_{x}x{y}.'))
-            plt.savefig(f"{out_path}figures/{_}_segmentation_result.png")
+            plt.savefig(f"{out_dir}/figures/{_}_segmentation_result.png")
 
     st_adata.obsm["cell_num"] = (ret["cell_num"]).to_numpy()
     st_adata.uns["seg_cell_pos"] = cell_pos
-    st_adata.write_h5ad(f"{out_path}segmentation_adata.h5ad")
+    ret["cell_num"].to_csv(f"{out_dir}/output/{project}_cell_num.csv")
+    cell_pos.to_csv(f"{out_dir}/output/{project}_cell_pos.csv")
+    st_adata.write_h5ad(f"{out_dir}/output/segmentation_adata.h5ad")
     return st_adata, cell_pos
