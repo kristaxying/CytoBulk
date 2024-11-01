@@ -77,10 +77,18 @@ def test_st_reconstruction_10x_6(adata_path):
                                 out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub6",
                                 spot_size=1) 
     
-
+@pytest.mark.skip 
 @pytest.mark.parametrize("adata_path", [("C:/Users/wangxueying/project/CytoBulk/case/10x/sub3/output/reconstructed_sub3_st.h5ad")])
 def test_st_reconstruction_10x_3(adata_path):
     adata = test_read_adata(adata_path)
     ct.plots.reconstruction_corr(adata=adata,
                                 out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub3",
+                                spot_size=1) 
+    
+
+@pytest.mark.parametrize("adata_path", [("C:/Users/wangxueying/project/CytoBulk/case/10x/sub6/output/reconstructed_sub6_st.h5ad")])
+def test_st_reconstruction_10x_5(adata_path):
+    adata = test_read_adata(adata_path)
+    ct.plots.reconstruction_corr(adata=adata,
+                                out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub6",
                                 spot_size=1) 

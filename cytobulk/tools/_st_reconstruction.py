@@ -70,6 +70,15 @@ def get_cell_type_fraction(number_of_cells, cell_type_fraction_data):
     return fraction_mean
 
 
+def modify_row(row):
+    max_value = row.max()
+    if max_value < 0.5:
+        return np.where(row == max_value, 1, 0)
+    else:
+        return np.round(row)
+
+
+
 def sample_single_cells(scRNA_data, cell_type_data, cell_type_numbers_int, sampling_method, seed):
     """
     Samples cells from scRNA_data based on the cell type distribution specified in cell_type_numbers_int.

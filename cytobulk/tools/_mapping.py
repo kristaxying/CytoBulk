@@ -243,7 +243,9 @@ def _run_st_mapping(st_adata,
     # get cell num for each spot
     fraction_spot_num = deconv_result.mul(cell_number_to_node_assignment.values,axis=0)
     fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num.csv")
-    fraction_spot_num = fraction_spot_num.round().astype(int)
+    fraction_spot_num = fraction_spot_num.apply(modify_row, axis=1)
+    fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num_motified.csv")
+    #fraction_spot_num = fraction_spot_num.round().astype(int)
     #number_of_cells = np.sum(cell_number_to_node_assignment)
     #cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
     #print(cell_type_numbers_int)
@@ -282,7 +284,7 @@ def _run_st_mapping(st_adata,
     # cell types are not specified; estimating from cell type fraction data
     assigned_locations_list = []
     cell_ids_selected_list=[]
-    round_item=0
+    #round_item=0
     for cells in cell_type_numbers_int.index.tolist():
         print(f"assign cell type {cells}")
         scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
@@ -292,13 +294,11 @@ def _run_st_mapping(st_adata,
         cell_number_to_node_assignment_cell_type = fraction_spot_num.loc[st_selected_index,cells]
         expressions_tpm_scRNA_log = scRNA_norm_data.loc[:,cell_type_selected_index]
         expressions_tpm_st_log = st_norm_data.loc[:,st_selected_index]
-        sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
+        #sub_coordinates_data  = coordinates_data.loc[st_selected_index,:]
         not_assigned_pos = np.arange(np.sum(cell_number_to_node_assignment_cell_type))
         not_assigned_cell = np.arange(expressions_tpm_scRNA_log.shape[1])
         lap_expressions_tpm_st_log = expressions_tpm_st_log
         lap_expressions_tpm_scRNA_log = expressions_tpm_scRNA_log
-        #total_cell_names = np.array(cell_type_selected_index)
-        #total_spot_names = np.array(st_selected_index)
         total_cost = 0
         back_up_sc = lap_expressions_tpm_scRNA_log
         while (len(not_assigned_pos)):
