@@ -68,13 +68,14 @@ def test_st_mapping_sub6(sc_adata,st_adata):
                      annotation_key='cell_type')
 
 @pytest.mark.parametrize("sc_adata,st_adata", [("C:/Users/wangxueying/project/CytoBulk/case/10x/input/sc_adata.h5ad",
-                                                "C:/Users/wangxueying/project/CytoBulk/case/10x/sub6/st_adata_sub_6_deconv.h5ad")])   
-def test_st_mapping_sub3(sc_adata,st_adata):
+                                                r"C:\Users\wangxueying\project\CytoBulk\case\10x\sub4\st_adata_sub_4_construction.h5ad")])   
+def test_st_mapping_sub4(sc_adata,st_adata):
     sc = test_read_adata(sc_adata)
     st = test_read_adata(st_adata)
+    print(st.uns.keys())
     ct.tl.st_mapping(st_adata = st,sc_adata = sc,
-                     out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub6",
-                     project="sub6",
+                     out_dir="C:/Users/wangxueying/project/CytoBulk/case/10x/sub4",
+                     project="sub4",
                      annotation_key='cell_type')
 @pytest.mark.skip      
 @pytest.mark.parametrize("sc_adata,st_adata", [("C:/Users/wangxueying/project/CytoBulk/case/10x/input/sc_adata.h5ad",
