@@ -1,8 +1,10 @@
 from cellpose import models, io, plot
 import numpy as np
 import pandas as pd
+import scanpy as sc
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import sys
 
 
 class Const:

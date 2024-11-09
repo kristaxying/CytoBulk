@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 import math
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix, csc_matrix
 from sklearn.preprocessing import StandardScaler
+from numba import njit, prange
 import anndata._core.views
 from sklearn.decomposition import PCA
 import scanpy as sc

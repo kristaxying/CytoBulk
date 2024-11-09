@@ -1,11 +1,17 @@
 import numpy as np
 import pandas as pd
 import math
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix, csc_matrix
+from sklearn.utils.sparsefuncs import inplace_column_scale, inplace_row_scale
 from sklearn.preprocessing import StandardScaler
+import numba
+import sys
+# import mkl
+from numba import njit, prange
 import anndata._core.views
 from sklearn.decomposition import PCA
 import scanpy as sc
+from sklearn.metrics.pairwise import cosine_similarity
 import scipy.spatial as sp
 
 def get_sum(
@@ -46,6 +52,38 @@ def get_sum(
 
 
 
+@njit(fastmath=True, parallel=True, cache=True)
+def _log1p(x):
+    for i in prange(len(x)):
+        x[i] = np.log1p(x[i])
+
+def log1p(
+    X,
+):
+
+    """
+    Calculates log1p inplace and in parallel.
+    
+    Parameters
+    ----------
+    X
+        A :class:`~numpy.ndarray` with more than 1 dimension, a `scipy` sparse
+        matrix, or something which has an attribute `.X` which fits this
+        description, e.g. an :class:`~anndata.AnnData`
+        
+    Returns
+    -------
+    `None`. This is an inplace operation.
+        
+    """
+
+    if hasattr(X, 'X'):
+        X = X.X
+
+    if issparse(X):
+        _log1p(X.data)
+    else:
+        _log1p(X)
 
 def pca(X,dimension=2):
     

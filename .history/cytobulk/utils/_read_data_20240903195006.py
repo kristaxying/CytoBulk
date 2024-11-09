@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import warnings
 import pandas as pd
+import scanpy as sc
+import tarfile
 
 def check_paths(output_folder,output_prefix=None):
     # Create relative path

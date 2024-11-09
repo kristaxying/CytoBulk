@@ -2,9 +2,10 @@ import sys
 import os
 import numpy as np
 import pandas as pd
+import time
 ## IF R path isn't set as system path, using followings to set the config.
 import os
-#os.environ['R_HOME'] = r'C:\Program Files\R\R-4.4.1'
+os.environ['R_HOME'] = r'C:\Program Files\R\R-4.4.1'
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from .. import utils

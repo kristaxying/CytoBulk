@@ -2,12 +2,14 @@
 import time
 import pandas as pd
 import numpy as np
+import anndata as ad
 import scanpy as sc
 import random
 import math
 from tqdm import tqdm
 from numpy.random import choice
 from ._read_data import check_paths
+from ._math import normalization_cpm
 from ._utils import compute_cluster_averages
 from .. import preprocessing
 from os.path import exists

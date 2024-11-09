@@ -1,6 +1,8 @@
 
 import pandas as pd
 import numpy as np
+import os
+import multiprocessing as mp
 from tqdm import tqdm
 from .. import get
 from .. import utils
@@ -10,6 +12,8 @@ from multiprocessing import Pool, cpu_count
 import numpy as np
 from ._st_reconstruction import *
 import random
+import sys
+from scipy.spatial import distance
 
 def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict, cellname_list, original_sc):
     """

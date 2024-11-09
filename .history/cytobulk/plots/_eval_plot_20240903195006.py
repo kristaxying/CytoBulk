@@ -1,11 +1,15 @@
 
 import pandas as pd
 import numpy as np
+import os
+from numpy.random import choice
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.colors import LinearSegmentedColormap, to_hex, to_rgb, to_rgba
+from matplotlib import colors
 import numpy as np
 import pandas as pd
-#import scanpy as sc
+import scanpy as sc
 from .. import utils
 import matplotlib.patches as mpatches
 

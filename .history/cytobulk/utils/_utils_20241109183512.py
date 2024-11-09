@@ -1,7 +1,19 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix
+from scipy.sparse import issparse, csr_matrix, csc_matrix
+from sklearn.utils.sparsefuncs import inplace_column_scale, inplace_row_scale
+import numba
+# import mkl
+import sys
+import os
+import scipy.sparse
+import joblib
+from sklearn.decomposition import PCA
+from numba import njit, prange
+from scipy.optimize import nnls
+import multiprocessing
 from ._read_data import check_paths
+import scanpy as sc
 
 def compute_cluster_averages(adata, annotation_key, common_cell,use_raw=False,project='',save=False,out_dir='./'):
     """

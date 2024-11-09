@@ -2,6 +2,7 @@ import pandas as pd
 import anndata as ad
 import numpy as np
 import scanpy as sc
+from os.path import exists
 from scipy.sparse import issparse,csr_matrix
 from .. import utils
 import time

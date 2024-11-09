@@ -1,13 +1,17 @@
 import numpy as np
 import pandas as pd
+import scanpy as sc
 from .. import utils
 from .. import get
-from ._rpackage import find_marker_giotto
+from .. import plots
+from ._rpackage import find_marker_giotto,remove_batch_effect
 from ._filtering import qc_bulk_sc,qc_st_sc,high_variable_gene
 from sklearn.metrics.pairwise import cosine_similarity
+import warnings
 from os.path import exists
 import json
 import time
+import sys
 
 
 
@@ -379,7 +383,18 @@ def preprocessing(bulk_data,
     common_cell = pseudo_adata.obs.columns
     print("common_cell")
     print(common_cell)
-
+    #if different_source:
+        #print('================================================================================================================')
+        # get cell type average expression.
+        #print('Start data integration')
+        #print('Compute average gene expression over different cell types with sc data')
+        #average_cell_exp = utils.compute_cluster_averages(sc_adata,annotation_key,common_cell,
+                                                        #out_dir=out_dir,project=dataset_name,save=True)
+        #print('Done')
+        # remove batch effect between stimulated bulk rna and input bulk rna
+        #print('Start batch effect')
+        #pseudo_bulk, bulk_adata = remove_batch_effect(pseudo_adata, bulk_adata, out_dir=out_dir, project=dataset_name)
+        #save pca figure before and after batch effect.
     if save:
         out_dir = utils.check_paths(f'{out_dir}/filtered')
         pseudo_adata.write_h5ad(f"{out_dir}/pseudo_bulk_{dataset_name}.h5ad")

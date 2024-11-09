@@ -1,4 +1,5 @@
 import pandas as pd
+import anndata as ad
 
 def get_meta(
     adata,
