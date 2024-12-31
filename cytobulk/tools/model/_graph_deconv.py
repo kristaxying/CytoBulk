@@ -105,8 +105,8 @@ class GraphConv(nn.Module):
         lam = torch.from_numpy(lam)
         #print(lam)
         lam= torch.diag(lam).to(self.device)
-        #u = torch.from_numpy(u).to(self.device)
-        u = u.to(self.device)
+        u = torch.from_numpy(u).to(self.device)
+        #u = u.to(self.device)
         lam = 2*((lam - torch.min(lam).to(self.device)) / (torch.max(lam).to(self.device) - torch.min(lam).to(self.device))) - torch.eye(lam.size(0)).to(self.device)
         mul_L = self.cheb_polynomial(lam).unsqueeze(1)
 

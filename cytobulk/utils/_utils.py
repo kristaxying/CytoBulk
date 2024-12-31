@@ -202,8 +202,6 @@ def filter_samples(pseudo_bulk, bulk_adata,data_num,num=20,cut_off=0.9,loc=None)
           num=int(num*1.5)
           top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
           selected_indices = np.unique(top_k_indices.flatten())
-          print("samples")
-          print(len(selected_indices))
     return sample_name[selected_indices]
 
 def compute_average_cosin(pseudo_bulk_tensor,bulk_adata,loc=None):

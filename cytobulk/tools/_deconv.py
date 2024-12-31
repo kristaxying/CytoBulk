@@ -172,8 +172,7 @@ def bulk_deconv(bulk_data,
         bulk_adata = sc.read_h5ad(f"{out_dir}/filtered/bulk_data_{dataset_name}.h5ad")
         with open(f"{out_dir}/filtered/cells_{dataset_name}.json") as json_file:
             common_cell = json.load(json_file)
-        if rename is not None:
-            annotation_key="curated_cell_type"
+        annotation_key="curated_cell_type"
     else:
         #preprocessing
         sc_adata, pseudo_bulk, bulk_adata, common_cell,annotation_key = pp.preprocessing(bulk_data,
@@ -209,7 +208,7 @@ def bulk_deconv(bulk_data,
     row_sums = deconv_result.sum(axis=1)
     df_normalized = deconv_result.div(row_sums, axis=0)
     bulk_ori_adata.uns['deconv']=df_normalized
-    df_normalized.to_csv(f"{out_dir}/{dataset_name}_prediction_frac_normalized.csv")
+    df_normalized.to_csv(f"{out_dir}/output/{dataset_name}_prediction_frac_normalized.csv")
     bulk_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_bulk_adata.h5ad')
 
     return deconv_result,bulk_adata

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 ## IF R path isn't set as system path, using followings to set the config.
 import os
-#os.environ['R_HOME'] = r'C:\Program Files\R\R-4.4.1'
+os.environ['R_HOME'] = r'C:\Program Files\R\R-4.4.1'
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from .. import utils
@@ -93,7 +93,6 @@ def remove_batch_effect(pseudo_bulk, bulk_adata, out_dir, project='',batch_effec
         if exists(f'{out_dir}/{project}_batch_effected.txt'):
             print(f'{out_dir}/{project}_batch_effected.txt already exists, skipping batch effect.')
             bulk_data = pd.read_csv(f"{out_dir}/{project}_batch_effected.txt",sep='\t').T
-            print(bulk_data.shape)
         else:
             
             save=True

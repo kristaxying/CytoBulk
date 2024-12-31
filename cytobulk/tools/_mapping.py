@@ -5,10 +5,13 @@ from tqdm import tqdm
 from .. import get
 from .. import utils
 import time
+import ot
+import sys
 import scanpy as sc
 from multiprocessing import Pool, cpu_count
 import numpy as np
 from ._st_reconstruction import *
+from ._he_inference import *
 import random
 
 def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict, cellname_list, original_sc):
@@ -16,22 +19,27 @@ def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict
     Parallel function for bulk reconstruction.
 
     """
+
     # compute person correlation and select sc according to person correlation.
     sc_mapping_dict = dict([(k,[]) for k in bulk_data.columns])
+
     name = bulk_data.columns[i]
     sample_cor = np.dot(bulk_data[name].values.reshape(1,bulk_data.shape[0]),sc_data.values)
     cor_index = cell_list[np.argsort(sample_cor)]
+    print(name)
     for j, cellname in enumerate(cellname_list):
-        mask = np.isin(cor_index, meta_dict[cellname])
-        sub_cell = cor_index[mask]
-        sub_cell = sub_cell[:int(cell_num[j])]
-        sc_mapping_dict[name].extend(sub_cell)
+      print(cellname)
+      mask = np.isin(cor_index, meta_dict[cellname])
+      sub_cell = cor_index[mask]
+      sub_cell = sub_cell[:int(cell_num[j])]
+      sc_mapping_dict[name].extend(sub_cell)
     sample_ori = original_sc.loc[:,sc_mapping_dict[name]].sum(axis=1)
     sample = sc_data.loc[:,sc_mapping_dict[name]].sum(axis=1)
     mapped_cor = utils.pear(sample,bulk_data[name].values).item()
     print(f"sample {name} done.")
 
     return sample_ori.tolist(), sample.tolist(), mapped_cor, sc_mapping_dict
+
 
 def bulk_mapping(bulk_adata,
                 sc_adata,
@@ -114,6 +122,11 @@ def bulk_mapping(bulk_adata,
     print("=================================================================================================")
     print('Start to mapping bulk data with single cell dataset.')
     # format data
+    bulk_adata.var_names_make_unique()
+    sc_adata.var_names_make_unique()
+    intersect_gene = bulk_adata.var_names.intersection(sc_adata.var_names)
+    bulk_adata = bulk_adata[:,intersect_gene]
+    sc_adata = sc_adata[:,intersect_gene]
     cell_prop = bulk_adata.uns['deconv']
     cell_matrix = np.floor(n_cell * cell_prop)
     cell_num = cell_matrix.astype(int)
@@ -149,9 +162,9 @@ def bulk_mapping(bulk_adata,
             cpu_num = cpu_count()
         # compute person correlation and select sc according to person correlation.
         print(f"multiprocessing mode, cpu count is {cpu_num}")
-        print(cell_num)
-        with Pool(cpu_num) as p:
+        with Pool(int(cpu_num)) as p:
             results = p.starmap(_bulk_mapping_parallel, [(i, cell_num.iloc[i,:], bulk_data, sc_data, cell_list, meta_dict, cellname_list, input_sc_data) for i in range(cell_num.shape[0])])
+            print(results)
         # postprocessing
         for i, (sample_ori_i,sample_i, mapped_cor_i, sc_mapping_dict_i) in enumerate(results):
             sample_ori[i]= np.array(sample_ori_i)
@@ -160,19 +173,19 @@ def bulk_mapping(bulk_adata,
             for k in sc_mapping_dict_i.keys():
                 sc_mapping_dict[k].extend(sc_mapping_dict_i[k])
     else:
-        for i, sample_num in tqdm(enumerate(cell_num)):
-            name = bulk_data.columns[i]
-            sample_cor = np.dot(bulk_data[name].values.reshape(1,bulk_data.shape[0]),sc_data.values)
+        for i, sample_num in tqdm(cell_num.iterrows()):
+            sample_cor = np.dot(bulk_data[i].values.reshape(1,bulk_data.shape[0]),sc_data.values)
             cor_index = cell_list[np.argsort(sample_cor)]
             for j, cellname in enumerate(cellname_list):
+                print(cellname)
                 mask = np.isin(cor_index, meta_dict[cellname])
                 sub_cell = cor_index[mask]
-                sub_cell = sub_cell[:int(sample_num[j])]
-                sc_mapping_dict[name].extend(sub_cell)
-            print(f"sample {name} done.")
-            sample_ori = input_sc_data.loc[:,sc_mapping_dict[name]].sum(axis=1)
-            sample = sc_data.loc[:,sc_mapping_dict[name]].sum(axis=1)
-            mapped_cor_i = utils.pear(sample,bulk_data[name].values).item()
+                sub_cell = sub_cell.iloc[:int(sample_num[j])]
+                sc_mapping_dict[i].extend(sub_cell)
+            print(f"sample {i} done.")
+            sample_ori = input_sc_data.loc[:,sc_mapping_dict[i]].sum(axis=1)
+            sample = sc_data.loc[:,sc_mapping_dict[i]].sum(axis=1)
+            mapped_cor_i = utils.pear(sample,bulk_data[i].values).item()
             mapped_cor.append(mapped_cor_i)
     print('initial mapping solution:',"min correlation", min(mapped_cor),"average correlation",np.mean(mapped_cor),"max correlation", max(mapped_cor))
     bulk_adata.obsm['cell_number']=pd.DataFrame(cell_matrix,index=cell_prop.index,columns=cell_prop.columns)
@@ -236,15 +249,10 @@ def _run_st_mapping(st_adata,
     # preprocess
     scRNA_data_sampled = sc_data.loc[intersect_genes, :]
     st_data = st_data.loc[intersect_genes, :]
-    # get cell num for each spot
     fraction_spot_num = deconv_result.mul(cell_number_to_node_assignment.values,axis=0)
     fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num.csv")
     fraction_spot_num = fraction_spot_num.apply(modify_row, axis=1)
     fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num_motified.csv")
-    #fraction_spot_num = fraction_spot_num.round().astype(int)
-    #number_of_cells = np.sum(cell_number_to_node_assignment)
-    #cell_type_numbers_int = get_cell_type_fraction(number_of_cells, deconv_result)
-    #print(cell_type_numbers_int)
     cell_type_numbers_int = fraction_spot_num.sum().to_frame()
     cell_type_numbers_int.to_csv(f"{out_dir}/output/cell_type_numbers_int.csv")
     cell_type_numbers_int.columns=[0]
@@ -254,16 +262,9 @@ def _run_st_mapping(st_adata,
     ### Sample scRNA_data
     print("Down/up sample of scRNA-seq data according to estimated cell type fractions")
     t0 = time.perf_counter()
-    # downsample scRNA_data_sampled to equal transcript counts per cell
-    # so that the assignment is not dependent on expression level
+
     if sc_downsample:
         scRNA_data_sampled = downsample(scRNA_data_sampled, scRNA_max_transcripts_per_cell)
-
-    # sample scRNA_data based on cell type composition
-    # cell count in scRNA_data_sampled will be equal to cell count (not spot count) in ST data
-    # additionally, the cells in scRNA_data_sampled will be in the order of cell types in cell_type_numbers_int
-    #scRNA_data_sampled =\
-        #sample_single_cells(scRNA_data_sampled, cell_type_data, cell_type_numbers_int, sampling_method, seed)
 
     print(f"Time to down/up sample scRNA-seq data: {round(time.perf_counter() - t0, 2)} seconds")
 
@@ -411,3 +412,109 @@ def st_mapping(st_adata,
     print("=========================================================================================================================================")
     
     return reconstructed_sc
+
+
+def he_mapping(sc_adata,
+               image_dir,
+               out_dir,
+               project,
+               lr_data,
+               annotation_key="curated_celltype",
+               k_neighbor=30,
+               alpha=0.5,
+               mapping_sc=False,
+               **kwargs):
+    start_t = time.perf_counter()
+    cell_coordinates = inference_cell_type_from_he_image(image_dir,
+                                                         out_dir,
+                                                         project)
+    if mapping_sc:
+        lr_data = pd.read_csv(lr_data)
+        print("preprocessing of single cell data")
+        lr_genes = np.unique(np.concatenate((lr_data['ligand'].values, lr_data['receptor'].values)))
+        sc.pp.filter_cells(sc_adata, min_genes=200)  # filter
+        sc.pp.filter_genes(sc_adata, min_cells=3)   # filter
+        sc.pp.normalize_total(sc_adata, target_sum=1e4)  # nor
+        sc.pp.log1p(sc_adata)  # log
+        common_gene = np.intersect1d(lr_genes, sc_adata.var_names)
+        sc_adata = sc_adata[:, common_gene].copy()
+        lr_data = lr_data[
+            (lr_data['ligand'].isin(common_gene)) & (lr_data['receptor'].isin(common_gene))
+        ].copy()
+
+        adata_cell_types = set(sc_adata.obs[annotation_key].unique())
+        coordinates_cell_types = set(cell_coordinates["cell_type"].unique())
+
+
+        # common_celltype
+        common_cell_types = adata_cell_types.intersection(coordinates_cell_types)
+        print(f"Common cell types: {common_cell_types}")
+
+        # filter adata and cell_coordinates
+        sc_adata = sc_adata[sc_adata.obs[annotation_key].isin(common_cell_types), :].copy()
+        cell_coordinates = cell_coordinates[cell_coordinates["cell_type"].isin(common_cell_types)].copy()
+
+
+        print("loading graph for H&E image...")
+        graph1_adj, graph1_labels = load_graph1(cell_coordinates,k=k_neighbor)
+
+        print("loading graph for single cell data with LR affinity...")
+        graph2_dist, graph2_labels,sc_adata = load_graph2_with_LR_affinity(sc_adata, 
+                                                                graph1_labels,
+                                                                lr_data,
+                                                                annotation_key)
+
+        graph2_dist = np.nan_to_num(graph2_dist, nan=np.nanmax(graph2_dist), posinf=np.nanmax(graph2_dist), neginf=0)
+
+        print("compute cost matrix")
+        cost_matrix = construct_cost_matrix(graph1_labels, graph2_labels)
+
+        cost_matrix = np.nan_to_num(cost_matrix, nan=np.nanmax(cost_matrix), posinf=np.nanmax(cost_matrix), neginf=0)
+
+        print("optimal transport...")
+        p = np.ones(graph1_adj.shape[0]) / graph1_adj.shape[0]
+        q = np.ones(graph2_dist.shape[0]) / graph2_dist.shape[0]
+
+        p = np.nan_to_num(p, nan=1.0 / len(p), posinf=1.0 / len(p), neginf=0)
+        q = np.nan_to_num(q, nan=1.0 / len(q), posinf=1.0 / len(q), neginf=0)
+
+        # Fused Gromov-Wasserstein
+        '''
+        gw_trans, log = ot.gromov.BAPG_fused_gromov_wasserstein(
+            cost_matrix, graph1_adj, graph2_dist, p, q, alpha=alpha, log=True
+        )
+        '''
+        ot_plan = ot.gromov.fused_gromov_wasserstein(
+        cost_matrix, graph1_adj, graph2_dist, p, q, alpha=alpha, loss_fun='square_loss'
+        )
+        print(ot_plan)
+        print(f'Time to finish mapping: {round(time.perf_counter() - start_t, 2)} seconds')
+        print("=========================================================================================================================================")
+        # Step 5: matching file
+        print("build matching file...")
+        locations = list(range(graph1_adj.shape[0])) 
+        cells = list(range(graph2_dist.shape[0])) 
+        matches = extract_matching_relationships(ot_plan, locations, cells)
+        df = pd.DataFrame(matches, columns=["location", "cell"])
+        location_mapping = cell_coordinates[["x", "y"]].to_dict(orient="index")
+        df["x"] = df["location"].map(lambda c: cell_coordinates['x'].values[c])
+        df["y"] = df["location"].map(lambda c: cell_coordinates['y'].values[c])
+        df["he_cell_type"] = df["location"].map(lambda c: cell_coordinates['cell_type'].values[c])
+        df["cell_type"] = df["cell"].map(lambda c: graph2_labels[c])
+        df["cell_id"] = df["cell"].map(lambda c: sc_adata.obs_names[c])
+        df.to_csv(f"{out_dir}/{project}_matching_results.csv", index=False)
+        df_cell_ids = df['cell_id']
+        adata_cell_ids = sc_adata.obs_names 
+        common_cell_ids = set(df_cell_ids).intersection(set(adata_cell_ids))
+        filtered_df = df[df['cell_id'].isin(common_cell_ids)].copy()
+        filtered_adata = sc_adata[sc_adata.obs_names.isin(common_cell_ids)].copy()
+        filtered_df = filtered_df.set_index('cell_id')
+        #filtered_adata.obs = pd.DataFrame()
+        filtered_adata.obs = filtered_df
+        filtered_adata.var.index.name = "gene"
+        print(filtered_adata)
+        filtered_adata.write_h5ad(f"{out_dir}/{project}_matching_adata.h5ad")
+        return df
+
+    
+    
