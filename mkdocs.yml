@@ -50,6 +50,7 @@ plugins:
 
 nav:
 - Home: index.md
+- Install: Install.md
 - API References:
   - preprocessing:
     - _filtering: ./preprocessing/_filtering.md
