@@ -335,6 +335,39 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#setting-up-the-environment-for-python-and-r" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setting Up the Environment for Python and R
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setting Up the Environment for Python and R">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-install-python-and-r-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 1: Install Python and R Together
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-install-only-python-and-specify-r-path-separately" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 2: Install Only Python and Specify R Path Separately
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       Prerequisites
@@ -528,6 +561,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../tutorials/he_deconv_anno/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ST data deconvolution and spot annotation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../tutorials/mapping_sc_bulk/" class="md-nav__link">
         
   
@@ -638,6 +692,39 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#setting-up-the-environment-for-python-and-r" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setting Up the Environment for Python and R
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setting Up the Environment for Python and R">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-install-python-and-r-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 1: Install Python and R Together
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-install-only-python-and-specify-r-path-separately" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 2: Install Only Python and Specify R Path Separately
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       Prerequisites
@@ -673,11 +760,24 @@
 <h1 id="installation-guide">Installation Guide</h1>
 <p>Follow the steps below to install and set up <strong>CytoBulk</strong>.</p>
 <hr />
+<h2 id="setting-up-the-environment-for-python-and-r">Setting Up the Environment for Python and R</h2>
+<h3 id="option-1-install-python-and-r-together">Option 1: Install Python and R Together</h3>
+<p><div class="highlight"><pre><span></span><code>conda create --name cytobulk python=3.10 r-base=4.4
+</code></pre></div>
+This approach is suitable for users who want all dependencies managed within the same Conda environment. However, it might <strong>not work reliably on Windows</strong> due to potential issues with R configuration in Conda.</p>
+<h3 id="option-2-install-only-python-and-specify-r-path-separately">Option 2: Install Only Python and Specify R Path Separately</h3>
+<p><div class="highlight"><pre><span></span><code>conda create --name cytobulk python=3.10
+</code></pre></div>
+Then, before running the main program, you need to specify the path to your locally installed R. This can be done using Python by setting the R_HOME environment variable. Add the following lines at the beginning of your Python script:
+<div class="highlight"><pre><span></span><code>import os
+# Set the R installation path (adjust the path based on your R installation)
+os.environ[&#39;R_HOME&#39;] = r_path
+</code></pre></div></p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>The CytoBulk package is developed based on the pytorch framework and can be implemented on both GPU and CPU. We recommend running the package on GPU. Please ensure that pytorch and CUDNN are installed correctly. To run <strong>CytoBulk</strong>, make sure all the following <strong>prerequisites</strong> are installed.</p>
 <ol>
 <li>
-<p><strong>R 4.4.0 or higher and the following packages</strong>  </p>
+<p><strong>R 4.4.0 or higher and the following packages</strong></p>
 <ul>
 <li>Giotto (1.1.2) <a href="https://giottosuite.readthedocs.io/en/master/gettingstarted.html">https://giottosuite.readthedocs.io/en/master/gettingstarted.html</a></li>
 <li>scran (1.32.0) <a href="https://bioconductor.org/packages/release/bioc/html/scran.html">https://bioconductor.org/packages/release/bioc/html/scran.html</a></li>
@@ -693,7 +793,9 @@
 </li>
 </ol>
 <h2 id="installation">Installation</h2>
-<div class="highlight"><pre><span></span><code>pip install CytoBulk
+<div class="highlight"><pre><span></span><code>conda activate cytobulk
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>pip install cytobulk==0.1.5
 
 or
 
