@@ -92,7 +92,7 @@ class GraphConv(nn.Module):
 
     def forward(self, inputs, graph, mode=Const.CHEB_MODE):
         L = GraphConv.get_laplacian(graph, self.normalize)
-        L = L.cpu()
+        L = L.cpu().numpy()
         lam, u = np.linalg.eig(L)
         q1 = np.percentile(lam.real,50)
         #lam = torch.from_numpy(lam)
@@ -311,7 +311,7 @@ def train_cell_loop_once(cell,
                     train_dataset = _dataset
                     valid_dataset = _valid
                     best_cosin = _cosin
-            print(best_cosin)
+
         train_loader = torch.utils.data.DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
         valid_loader = torch.utils.data.DataLoader(dataset = valid_dataset, batch_size = 1, shuffle = False)
         max_retry=5

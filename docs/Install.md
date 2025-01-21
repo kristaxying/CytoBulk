@@ -43,12 +43,12 @@ The CytoBulk package is developed based on the pytorch framework and can be impl
 ```
 conda activate cytobulk
 ```
-
+then install the package
 ```
-pip install cytobulk==0.1.5
-
+pip install cytobulk==0.1.6
+```
 or
-
+```
 git clone git@github.com:kristaxying/CytoBulk.git
 
 cd CytoBulk

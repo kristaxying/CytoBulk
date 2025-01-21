@@ -11,7 +11,7 @@ from os.path import exists
 
 
 
-def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
+def find_marker_giotto(sc_adata,anno_key,out_dir='./',project='',python_path=None):
     """
     find marker gene for each cell type using Giotto package.
 
@@ -33,8 +33,11 @@ def find_marker_giotto(sc_adata,anno_key,out_dir='./',project=''):
     """
     # save must be true
     save=True
-    # get executed python.exe path
-    python_path = sys.executable
+    if python_path is None:
+        # get executed python.exe path
+        python_path = sys.executable
+        print("your python path is: ",python_path)
+    print("your python path is: ",python_path)
     # format expression data
     exp = get.count_data(sc_adata)
     sc_anno = pd.DataFrame(sc_adata.obs[anno_key])

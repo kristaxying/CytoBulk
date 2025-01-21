@@ -5,7 +5,6 @@ import numpy as np
 import scanpy as sc
 import random
 import math
-from tqdm import tqdm
 from numpy.random import choice
 from ._read_data import check_paths
 from ._utils import compute_cluster_averages
@@ -43,7 +42,7 @@ def _get_stimulation(sc_data,meta_data,n_celltype,annotation_key,n_sample,n,roun
     """
 
     cell_prop = np.random.dirichlet(np.ones(n_celltype), n_sample)
-    print(cell_prop)
+
     #cell_prop[cell_prop < 1/n_celltype] = 0
 
     meta_index = meta_data[[annotation_key]]
@@ -52,7 +51,6 @@ def _get_stimulation(sc_data,meta_data,n_celltype,annotation_key,n_sample,n,roun
         meta_index[key] = np.array(value)
     
     # scale prop value
-    print(f'The number of samples is {cell_prop.shape[0]}, the number of cell types is {cell_prop.shape[1]}, cell number is {n}')
     if cell_prop.shape[1] > n:
         for j in range(int(cell_prop.shape[0])):
             cells = np.random.choice(np.arange(cell_prop.shape[1]), replace=False, size=cell_prop.shape[1]-n)
@@ -70,17 +68,17 @@ def _get_stimulation(sc_data,meta_data,n_celltype,annotation_key,n_sample,n,roun
     #cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
     
     #genration of expression data and fraction data
-    print('Start sampling...')
+
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))
     allcellname = meta_index.keys()
     cell_num = np.floor(n * cell_prop)
     cell_prop_new = cell_num/ np.sum(cell_num, axis=1).reshape(-1, 1)
-    for i, sample_prop in tqdm(enumerate(cell_num)):
+    for i, sample_prop in enumerate(cell_num):
         for j, cellname in enumerate(allcellname):
             select_index = choice(meta_index[cellname], size=int(sample_prop[j]), replace=True)
             sample[i] += sc_data.loc[:,select_index].sum(axis=1)
     sample = sample/n
-    print("Sampling down")
+
 
     # generate a ref_adata
     cell_prop = pd.DataFrame(cell_prop_new,
@@ -144,7 +142,6 @@ def _get_prop_sample_bulk(sc_data,meta_data,cell_composition,n_celltype,cell_spe
     for key, value in meta_index.items():
         meta_index[key] = np.array(value)
     # scale prop value
-    print(f'The number of samples is {cell_prop.shape[0]}, the number of cell types is {cell_prop.shape[1]}, cell number is {n}')
     #if cell_prop.shape[1] > 5:
       #cut_num=[3,4,5]
     #else:
@@ -161,16 +158,15 @@ def _get_prop_sample_bulk(sc_data,meta_data,cell_composition,n_celltype,cell_spe
     for i in range(int(cell_prop.shape[0])):
         cell_prop[i,selected_index]=cell_prop[i,selected_index]+random.uniform(0, 1)
     cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
-    print(f'Start sampling for major cell type is {cell_specific}')
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))
     cell_num = np.floor(n * cell_prop)
     cell_prop_new = cell_num/ np.sum(cell_num, axis=1).reshape(-1, 1)
-    for i, sample_prop in tqdm(enumerate(cell_num)):
+    for i, sample_prop in enumerate(cell_num):
         for j, cellname in enumerate(allcellname):
             select_index = choice(meta_index[cellname], size=int(sample_prop[j]), replace=True)
             sample[i] += sc_data.loc[:,select_index].sum(axis=1)
     sample = sample/n
-    print("Sampling down")
+
 
     # generate a ref_adata
     cell_prop = pd.DataFrame(cell_prop_new,
@@ -243,7 +239,7 @@ def _get_prop_sample_sti(sc_data,meta_data,cell_composition,n_celltype,cell_spec
     for key, value in meta_index.items():
         meta_index[key] = np.array(value)
     # scale prop value
-    print(f'The number of samples is {cell_prop.shape[0]}, the number of cell types is {cell_prop.shape[1]}, cell number is {n}')
+
     #if cell_prop.shape[1] > 5:
       #cut_num=[3,4,5]
     #else:
@@ -256,16 +252,14 @@ def _get_prop_sample_sti(sc_data,meta_data,cell_composition,n_celltype,cell_spec
     
     cell_prop[:,selected_index]=cell_prop[:,selected_index]+random.uniform(1, 2)
     cell_prop = cell_prop / np.sum(cell_prop, axis=1).reshape(-1, 1)
-    print(f'Start sampling for major cell type is {cell_specific}')
     sample = np.zeros((cell_prop.shape[0],sc_data.shape[0]))
     cell_num = np.floor(n * cell_prop)
     cell_prop_new = cell_num/ np.sum(cell_num, axis=1).reshape(-1, 1)
-    for i, sample_prop in tqdm(enumerate(cell_num)):
+    for i, sample_prop in enumerate(cell_num):
         for j, cellname in enumerate(allcellname):
             select_index = choice(meta_index[cellname], size=int(sample_prop[j]), replace=True)
             sample[i] += sc_data.loc[:,select_index].sum(axis=1)
     sample = sample/n
-    print("Sampling down")
 
     # generate a ref_adata
     cell_prop = pd.DataFrame(cell_prop_new,
@@ -372,7 +366,6 @@ def bulk_simulation(sc_adata,
             selected_celltype = sample_cell_composition[j]
             cells = np.array(average_cell_exp.index.tolist())[selected_celltype[0]]
             change_fold = cell_prop[cells]/(1/len(all_cells_names))
-            print(change_fold)
             if change_fold>=1.5:
                 sti_num=round(n_sample_each_group*((1/change_fold)/bulk_data.shape[0]))
                 if sti_num<3:

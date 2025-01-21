@@ -57,7 +57,7 @@ def _check_cell_type(sc_adata,cell_type_key="cell_type",cell_list=None):
 
 
 
-def _join_marker(bulk_adata,sc_adata,annotation_key,marker_list,out_dir='./',dataset_name=''):
+def _join_marker(bulk_adata,sc_adata,annotation_key,marker_list,out_dir='./',dataset_name='',python_path=None):
 
     """
     join the auto find marker and database marker together.
@@ -80,7 +80,7 @@ def _join_marker(bulk_adata,sc_adata,annotation_key,marker_list,out_dir='./',dat
     if not exists(f'{out_dir}/{dataset_name}_marker.txt'):
         print("-------------------------Start finding cell type marker genes using Gitto--------------------------")
         start_t = time.perf_counter()
-        marker_gene = find_marker_giotto(sc_adata,annotation_key,out_dir,dataset_name)
+        marker_gene = find_marker_giotto(sc_adata,annotation_key,out_dir,dataset_name,python_path)
         print("-------------------------------Finish marker gene detection--------------------------------------")
         print(f'Time to finish marker gene detection: {round(time.perf_counter() - start_t, 2)} seconds')
     else:
@@ -184,6 +184,7 @@ def preprocessing(bulk_data,
                 cell_gap_each_group=100,
                 group_number=5,
                 filter_samples=False,
+                python_path=None,
                 **kwargs):
     """
     Preprocessing on bulk and sc adata, including following steps:\ 
@@ -222,6 +223,8 @@ def preprocessing(bulk_data,
         - `None`: no transformation
     save_figure: boolean, optional
         Whether save figures during preprocessing. eg. scatter plot of pca data.
+    python_path: string, optional
+        The path of python.exe for Giotto package.
     **kwargs: 
         Additional keyword arguments forwarded to
         :func:`~cytobulk.preprocessing.qc_bulk_sc`.

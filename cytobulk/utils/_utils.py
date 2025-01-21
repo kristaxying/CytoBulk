@@ -108,7 +108,6 @@ def data_dict_integration(common_list,data_df,data_dict,common_cell,top_num=100)
     for i in key_list:
         # find marker gene name in each cell type
         tmp_index = data_df[i].sort_values().iloc[:top_num].keys()
-        print(data_dict[i])
         if data_dict[i]!=[]:
             common_index = np.union1d(np.array(tmp_index), np.array(data_dict[i]))
         else:
@@ -197,7 +196,6 @@ def filter_samples(pseudo_bulk, bulk_adata,data_num,num=20,cut_off=0.9,loc=None)
         target_num = 2000
     else:
         target_num=5*similarity_matrix.shape[0]
-    print(target_num)
     while len(selected_indices)<target_num:
           num=int(num*1.5)
           top_k_indices = np.argsort(-similarity_matrix, axis=1)[:, :num]
@@ -223,7 +221,6 @@ def filter_gene(expression,reference,out_dir,cell_type,save=True):
     data_list=[expression,reference]
     filtered_list=[]
     for df in data_list:
-        print(df)
         zero_count_per_column = (df == 0).sum(axis=0)
         columns_to_keep = zero_count_per_column[zero_count_per_column <= (len(df) / 2)].index
         df_filtered = df[columns_to_keep]
