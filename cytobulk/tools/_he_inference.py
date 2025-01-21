@@ -23,48 +23,45 @@ np.random.seed(42)
 
 def process_txt_files(input_dir, output_file_name, project_name_filter=None):
     output_file_name=output_file_name+".txt"
-    # 输出文件完整路径
+
     output_file_path = os.path.join(input_dir, output_file_name)
 
     # 打开输出文件
     with open(output_file_path, "w") as outfile:
-        # 遍历输入文件夹中的所有txt文件
+
         for filename in os.listdir(input_dir):
             if filename.endswith(".txt"):
-                # 按文件名格式解析project_name, x, y
+
                 parts = filename.split("_")
                 if len(parts) < 4 or not parts[-1].endswith("cent.txt"):
                     print(f"Skipping invalid file name: {filename}")
                     continue
                 
-                project_name = "_".join(parts[:-4])  # 合并 project_name
+                project_name = "_".join(parts[:-4])  
                 x_offset = int(parts[-4])
                 y_offset = int(parts[-3])
                 
-                # 如果设置了过滤条件，跳过不匹配的project_name
+
                 if project_name_filter and project_name != project_name_filter:
                     continue
 
                 input_path = os.path.join(input_dir, filename)
                 
-                # 打开并读取txt文件
+
                 with open(input_path, "r") as infile:
                     for line in infile:
                         line = line.strip()
-                        if not line:  # 忽略空行
+                        if not line:  
                             continue
-                        
-                        # 解析每行内容
+
                         try:
                             x, y, label = line.split("\t")
-                            print(x, y, label)
                             x = int(x) + x_offset
                             y = int(y) + y_offset
                             
-                            # 写入到输出文件
                             outfile.write(f"{project_name}\t{x}\t{y}\t{label}\n")
-                        except ValueError:
-                            print(f"Skipping malformed line in {filename}: {line}")
+                        except Exception:
+                            pass
 
     print(f"Data successfully written to {output_file_path}")
 
@@ -196,7 +193,6 @@ def inference_cell_type_from_he_image(
             df = pd.read_csv(f'{out_dir}/combinded_cent.txt',sep='\t')
             df.columns = ['data_set','x','y','cell_type']
             print("Save file done")
-        print(df)
     return df
 
 def load_graph1(cell_data, k=15):

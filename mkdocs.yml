@@ -37,29 +37,40 @@ extra:
 
 copyright: Copyright &copy; 2023 WANG Xueying WANG Yian
 
-repo_url: https://github.com/kristaxying/CytoBulk
+repo_url: https://kristaxying.github.io/CytoBulk/
 repo_name: CytoBulk
 
 plugins:
-- mkdocstrings:
-    handlers:
-      python:
-        options:
-          docstring_style: numpy
-- search
+  - mknotebooks:
+      encoding: 'utf-8'
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+  - search
+extra:
+  encoding: 'utf-8'
+
+
+
+markdown_extensions:
+- admonition
+- codehilite
+- pymdownx.superfences
 
 nav:
 - Home: index.md
 - Install: Install.md
 - API References:
-  - preprocessing:
-    - _filtering: ./preprocessing/_filtering.md
-    - _preprocessing: ./preprocessing/_preprocessing.md
-  - tools:
-    - deconv: ./tools/_deconv.md
-    - mapping: ./tools/_mapping.md
-    - segmentation: ./tools/_segmentation.md
-  - plots:
-    - plot: ./plots/_plot.md
-- Examples: Examples.md
+
+  - deconv: ./tools/_deconv.md
+  - mapping: ./tools/_mapping.md
+  - segmentation: ./tools/_segmentation.md
+  - plot: ./plots/_plot.md
+- Examples: 
+  - ST data deconvolution and spot annotation: ./tutorials/he_deconv_anno.ipynb
+  - Bulk deconvolution and mapping with scRNA-seq: ./tutorials/mapping_sc_bulk.ipynb
+  - ST deconvolution and mapping with scRNA-seq: ./tutorials/mapping_sc_st.ipynb
+  - H&E cell prediction and integration with scRNA-seq: ./tutorials/mapping_he_sc.ipynb
 - References: References.md

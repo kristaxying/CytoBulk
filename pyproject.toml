@@ -1,31 +1,3 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]  
-build-backend = "setuptools.build_meta" 
-
-[project]
-name = "CytoBulk"             
-version = "0.1.0"                     
-description = "A short description of your package"  # 简短描述
-readme = "README.md"                   
-requires-python = ">=3.10"              
-license = {text = "MIT"}               
-authors = [
-    {name = "Xueying WANG", email = "xueying.WANG-c@my.cityu.edu.hk"}
-]                                   
-homepage = "https://github.com/kristaxying/CytoBulk" # 项目主页
-classifiers = [                        
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent"
-]
-
-dependencies = [
-    "numpy>=2.2.0",
-    "pandas>=2.3.1"
-
-]                                      
-
-[project.urls]
-Documentation = "https://your-docs-link"
-Source = "https://github.com/kristaxying/CytoBulk"
-Tracker = "https://github.com/kristaxying/CytoBulk/issues"
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

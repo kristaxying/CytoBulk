@@ -27,3 +27,11 @@ data/
 
 # logs
 *.out
+
+dist/
+
+site/
+
+build/
+
+CytoBulk.egg-info/

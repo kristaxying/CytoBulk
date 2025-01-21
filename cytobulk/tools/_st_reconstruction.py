@@ -138,69 +138,6 @@ def sample_single_cells(scRNA_data, cell_type_data, cell_type_numbers_int, sampl
     return all_cells_save
 
 
-def partition_indices(indices, split_by_category_list=None, split_by_interval_int=None, shuffle=True):
-    """
-    Splits the provided indices into list of smaller index sets based on other parameters.
-    indices is originally a single 1D numpy array, which is then split and returned as a list of smaller 1D numpy arrays.
-    e.g., indices = np.arange(0, 5000) can be split into [np.arange(0, 2000), np.arange(2000, 5000)].
-
-    Parameters :
-        indices                (1D np.array(int)) : indices to be split.
-
-        split_by_category_list (1D np.array(int)) : number of indices for each category that cannot be mixed together.
-            split_by_category_list should sum to len(indices)
-            e.g., if split_by_category_list is [3000, 5000], with indices == 0:8000,
-                    then the first 3000 will be partitioned separately from the latter 5000.
-                    i.e., [0:2000, 2000:3000, 3000:7000, 7000:8000] is possible, but [0:2000, 2000:7000, 7000:8000] is not.
-        
-        split_by_interval_int               (int) : max length of each partition.
-            if split_by_category_list is None, then indices are split into partitions of this size.
-            e.g., if split_by_interval_int is 1000, with indices == 0:2500, then [0:1000, 1000:2000, 2000:2500] is returned.
-            if split_by_category_list is specified, then any category that exceeds this size will be further partitioned.
-            e.g., if split_by_category_list is [500, 1000, 300] and split_by_interval_int is 400, with indices == 0:1800,
-                    then [0:400, 400:500, 500:900, 900:1300, 1300:1500, 1500:1800] is returned.
-                    - split_by_category_list sets breakpoints at 500 and 1500
-                    - split_by_interval_int sets breakpoints at every 400 inside each of the three groups
-
-        shuffle                            (bool) : whether indices should be shuffled before being split.
-    
-    Returns :
-        List[1D np.array(int)] : Partitioned indices.
-    """
-    num_indices = len(indices)
-
-    if shuffle:
-        np.random.shuffle(indices)
-
-    # initialize breakpoints, as start and end
-    breakpoints = [0, num_indices]
-
-    # add breakpoints set by split_by_category_list
-    if split_by_category_list is not None:
-        if np.sum(split_by_category_list) != num_indices:
-            print('Warning: sum of counts in each category does not match the full length')
-        breakpoints.extend(np.cumsum(split_by_category_list))
-        breakpoints = sorted(np.unique(breakpoints))
-    
-    # add breakpoints set by split_by_interval_int
-    if split_by_interval_int is not None:
-        breakpoints_new = breakpoints.copy()
-        for idx in range(len(breakpoints)-1):
-            if breakpoints[idx+1] - breakpoints[idx] <= split_by_interval_int:
-                continue
-            breakpoints_new.extend(np.arange(breakpoints[idx], breakpoints[idx+1], split_by_interval_int))
-        breakpoints = breakpoints_new
-    
-    # take unique values, sort in ascending order, and remove start and end indices
-    breakpoints = sorted(np.unique(breakpoints))[1:-1]
-
-    # partition the indices based on breakpoints
-    split_indices_list = np.array_split(indices, breakpoints)
-
-    return split_indices_list
-
-
-
 
 def build_cost_matrix(expressions_tpm_st_log, expressions_tpm_scRNA_log, keep_rate,cell_number_to_node_assignment):
     start_time = time.time()
@@ -208,7 +145,7 @@ def build_cost_matrix(expressions_tpm_st_log, expressions_tpm_scRNA_log, keep_ra
     to_assign = expressions_tpm_scRNA_log.shape[1]
     if (to_assign > 100):
         to_assign = int(to_assign * keep_rate)
-    print(to_assign)
+
     knn = NearestNeighbors(n_neighbors=to_assign)
 
     fit_results = knn.fit(expressions_tpm_scRNA_log.T.to_numpy())

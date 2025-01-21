@@ -1,9 +1,6 @@
-from cellpose import models, io, plot
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-
 
 class Const:
     PIX_X = 'X'
@@ -59,6 +56,9 @@ def predict_cell_num(st_adata,
     cell_pos : pandas.DataFrame
         DataFrame containing cell positions.
     '''
+    from cellpose import models, io, plot
+    from tqdm import tqdm
+
     print('-----Initializing model...')
     model = models.Cellpose(model_type=model_type)
     ch = [0, 0] # NOTE: here we set all images to greyscale

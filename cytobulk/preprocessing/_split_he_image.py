@@ -3,60 +3,95 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from .. import utils
 
-def process_svs_image(svs_path, output_dir, project, crop_size=224, magnification=20):
-    utils.check_paths(f'{output_dir}/output')
 
-    # 读取SVS文件
+def process_svs_image(svs_path, output_dir, crop_size=224, magnification=1, 
+                      center_x=None, center_y=None, fold_width=10, fold_height=10):
+    """
+    Process an SVS (Whole Slide Image) file to crop a specific region, resize it, 
+    and save smaller tiles extracted from the region.
+
+    Parameters
+    ----------
+    svs_path : string
+        Path to the SVS file to be processed.
+    output_dir : string
+        Path to the directory where cropped tiles will be saved.
+    crop_size : int, optional
+        Size of each cropped tile (default is 224x224 pixels).
+    magnification : int, optional
+        Magnification factor for the cropped region (default is 1).
+    center_x : int, optional
+        X-coordinate of the cropping center. Defaults to the image center if None.
+    center_y : int, optional
+        Y-coordinate of the cropping center. Defaults to the image center if None.
+    fold_width : int, optional
+        Number of tiles in the horizontal direction (default is 10).
+    fold_height : int, optional
+        Number of tiles in the vertical direction (default is 10).
+        
+    Returns
+    -------
+    None
+    """
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Open the SVS file
     slide = openslide.OpenSlide(svs_path)
-    
-    # 获取图像的宽和高
+
+    # Get the dimensions of the whole slide image
     width, height = slide.dimensions
     print(f"Original image size: {width}x{height}")
-    
-    # 计算图像中心坐标
-    center_x, center_y = width // 2, height // 2
+
+    # Set the cropping center to the image center if not provided
+    if center_x is None:
+        center_x = width // 2
+    if center_y is None:
+        center_y = height // 2
     print(f"Image center: ({center_x}, {center_y})")
-    
-    # 截取一个部分（从中心坐标开始，选一个2000x2000的区域）
-    crop_width, crop_height = 2000, 2000
-    start_x = max(center_x - crop_width // 2, 0)
-    start_y = max(center_y - crop_height // 2, 0)
+
+    # Calculate the dimensions of the cropping region
+    crop_width = fold_width * crop_size  # Total width of the cropped region
+    crop_height = fold_height * crop_size  # Total height of the cropped region
+
+    # Calculate the starting coordinates of the cropping region
+    start_x = max(center_x - crop_width // 2, 0)  # Ensure it doesn't go out of bounds
+    start_y = max(center_y - crop_height // 2, 0)  # Ensure it doesn't go out of bounds
     print(f"Crop region: Start=({start_x}, {start_y}), Size=({crop_width}, {crop_height})")
-    
-    # 读取截取的区域
+
+    # Read the cropped region from the slide at level 0 (highest resolution)
     region = slide.read_region((start_x, start_y), 0, (crop_width, crop_height))
-    region = region.convert("RGB")  # 转换为RGB模式
-    
-    # 显示截取的图像
+    region = region.convert("RGB")  # Convert the cropped region to RGB format
+
+    # Visualize the cropped region using matplotlib
     plt.imshow(region)
     plt.title("Cropped Region")
     plt.axis("off")
     plt.show()
-    
-    # 将截取部分放大20倍
+
+    # Calculate the enlarged dimensions of the cropped region
     enlarged_width = crop_width * magnification
     enlarged_height = crop_height * magnification
+
+    # Resize the cropped region to the specified magnification
     region_enlarged = region.resize((enlarged_width, enlarged_height), Image.LANCZOS)
     print(f"Enlarged image size: {region_enlarged.size}")
-    
-    # 从放大后的图像中裁剪224x224的图像
-    for x in range(0, enlarged_width, crop_size):
-        for y in range(0, enlarged_height, crop_size):
-            # 确保裁剪区域不超出图像范围
-            if x + crop_size <= enlarged_width and y + crop_size <= enlarged_height:
-                cropped = region_enlarged.crop((x, y, x + crop_size, y + crop_size))
-                
-                # 保存裁剪后的图像，命名为最小的XY坐标
-                filename = f"{x}_{y}.jpg"
-                cropped.save(os.path.join(output_dir, filename))
-                print(f"Saved: {filename}")
 
-if __name__ == "__main__":
-    # 输入SVS文件路径
-    svs_file_path = "path/to/your/file.svs"  # 替换为你的SVS文件路径
-    output_directory = "output_images"  # 输出文件夹
-    
-    # 运行处理函数
-    process_svs_image(svs_file_path, output_directory)
+    # Loop through the enlarged region and save tiles of size (crop_size x crop_size)
+    for i in range(fold_width):  # Loop through horizontal tiles
+        for j in range(fold_height):  # Loop through vertical tiles
+            # Calculate the coordinates for the current tile
+            x = i * crop_size
+            y = j * crop_size
+
+            # Ensure the tile is within the bounds of the enlarged image
+            if x + crop_size <= enlarged_width and y + crop_size <= enlarged_height:
+                # Crop the tile from the enlarged region
+                cropped = region_enlarged.crop((x, y, x + crop_size, y + crop_size))
+
+                # Generate the filename for the tile
+                filename = f"{i}_{j}.jpg"
+
+                # Save the tile to the output directory
+                cropped.save(os.path.join(output_dir, filename))

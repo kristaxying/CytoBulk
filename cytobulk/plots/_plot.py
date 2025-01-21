@@ -382,4 +382,208 @@ def plot_reconstruction(adata,
 
 
     
+def plot_he_cell_type(data,out_dir):
+    """
+    Visualize and save a scatter plot of cell locations by cell type.
 
+    This function generates a scatter plot to visualize the spatial distribution of different cell types 
+    based on their x and y coordinates. The plot is customized with specific colors for predefined cell types 
+    and is saved as a PNG file.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        A pandas DataFrame containing the following columns:
+        - 'cell_type': Categorical data representing cell types (e.g., "Epithelial Cells").
+        - 'x': Numerical values representing the x-coordinates of the cells.
+        - 'y': Numerical values representing the y-coordinates of the cells.
+
+    out_dir : str
+        The directory where the generated plot image will be saved. The plot will be saved as 
+        "cell_type.png" within this directory.
+
+    Returns
+    -------
+    None
+        This function does not return any values. It generates and saves the scatter plot as a PNG file.
+
+    Notes
+    -----
+    - The plot uses predefined colors for the following cell types:
+        * "Epithelial Cells": #A52A2A (brown)
+        * "Neutrophils": #0000B8 (blue)
+        * "Plasma Cells": #0D98BA (cyan)
+        * "Connective Tissue": #FFCC33 (yellow)
+        * "Lymphocytes": #B284BE (purple)
+      Cell types not listed above are assigned the color "black".
+    - The y-axis is inverted to match the typical orientation of spatial data.
+    """
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    categories = data["cell_type"].unique()
+    colors = {
+        "Epithelial Cells": "#A52A2A",  
+        "Neutrophils": "#0000B8",      
+        "Plasma Cells": "#0D98BA",     
+        "Connective Tissue": "#FFCC33", 
+        "Lymphocytes": "#B284BE"      
+    }
+
+    plt.figure(figsize=(4, 4))
+
+    for category in categories:
+        subset = data[data["cell_type"] == category]
+        plt.scatter(subset["x"], subset["y"], label=category, color=colors.get(category, "black"), s=10, alpha=0.8)
+    plt.legend(
+        loc="upper right",             # Place the legend in the top-right corner
+        title="Cell Types",            # Add a title to the legend
+        fontsize=8,                    # Set font size for the legend labels
+        title_fontsize=10,             # Set font size for the legend title
+        markerscale=1.5                # Scale the legend markers (scatter points)
+    )
+    
+    
+    plt.gca().axis("off")
+    plt.gca().invert_yaxis()
+    save_path = f"{out_dir}/cell_type.png"
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight", pad_inches=0) 
+    plt.show()
+
+
+def plot_gene_similarity(adata, marker_df, custom_palette="Spectral"):
+    """
+    Compute and visualize cosine similarity for marker genes across cell types.
+
+    This function calculates cosine similarity for marker genes between the gene expression matrix 
+    and a mapping layer in an AnnData object. It generates a swarm plot to visualize the results 
+    grouped by cell type.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        An :class:`~anndata.AnnData` object containing gene expression data in `.X` and a mapping layer in `.layers["mapping_ori"]`.
+
+    marker_df : pandas.DataFrame
+        DataFrame containing marker gene information. It must include the following columns:
+        - 'gene_symbol': Gene symbol names.
+        - 'cell_type': Cell type associated with the marker gene.
+        - 'pvalue': P-value indicating marker significance.
+        - 'score': Score representing the marker strength.
+
+    custom_palette : str or list, optional (default: "Spectral")
+        Custom color palette for plotting. Can be a string representing a seaborn palette or a list of colors.
+
+    Returns
+    -------
+    matplotlib.pyplot.Figure
+        A swarm plot showing cosine similarities for marker genes grouped by cell type.
+    """
+    # Access the gene expression matrix and mapping layer
+    import pandas as pd
+    import numpy as np
+    import scanpy as sc
+    from scipy.spatial.distance import cosine
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    mapping_ori = adata.layers["mapping_ori"]  # Original mapping layer
+    adata_x = adata.X  # Main gene expression matrix
+
+    # Align gene symbols between the marker dataframe and the AnnData object
+    genes = adata.var.index.tolist()  # List of genes in AnnData
+    marker_genes = marker_df['gene_symbol'].tolist()  # List of marker genes
+    common_genes = list(set(marker_genes).intersection(genes))  # Find common genes
+
+    # Filter the marker DataFrame to only include the common genes
+    marker_df = marker_df[marker_df['gene_symbol'].isin(common_genes)]
+
+    # Initialize a list to store results for all cell types
+    all_results = []
+
+    # Group marker genes by cell type
+    for cell_type, group in marker_df.groupby("cell_type"):
+        print(f"Processing cell_type: {cell_type}")
+        
+        # Filter marker genes with p-value < 0.05
+        filtered_group = group[group['pvalue'] < 0.05]
+        
+        # If more than 50 genes are available, select the top 50 based on the 'score' column
+        top_genes = filtered_group.nlargest(50, "score")
+
+        # Define a helper function to compute cosine similarity
+        def compute_cosine_similarity(gene_symbol, mapping_ori, adata_x, var_names):
+            """
+            Compute cosine similarity for a given gene.
+
+            Parameters:
+            ----------
+            gene_symbol : str
+                The gene symbol to compute similarity for.
+            mapping_ori : np.ndarray
+                The original mapping layer array.
+            adata_x : np.ndarray
+                Gene expression matrix from AnnData.
+            var_names : list
+                List of gene names in AnnData.
+
+            Returns:
+            -------
+            float
+                Cosine similarity value or NaN if computation is not possible.
+            """
+            # If the gene is not found in AnnData, return NaN
+            if gene_symbol not in var_names:
+                return np.nan
+            
+            # Get the index of the gene in the AnnData object
+            gene_idx = var_names.index(gene_symbol)
+            
+            # Extract expression vectors for the gene
+            gene_expression_vector = adata_x[:, gene_idx].flatten()  # Expression vector in adata.X
+            ori_vector = mapping_ori[:, gene_idx].flatten()  # Expression vector in mapping_ori
+
+            # Compute cosine similarity if vectors are non-zero
+            if np.any(gene_expression_vector) and np.any(ori_vector):
+                similarity = 1 - cosine(gene_expression_vector, ori_vector)
+            else:
+                similarity = np.nan  # Return NaN for zero vectors
+            
+            return similarity
+
+        # Compute cosine similarity for each gene in the top genes
+        var_names = adata.var.index.tolist()  # Get gene names from AnnData
+        cosine_similarities = [
+            compute_cosine_similarity(gene_symbol, mapping_ori, adata.X, var_names)
+            for gene_symbol in top_genes["gene_symbol"]
+        ]
+        
+        # Add cosine similarity values to the DataFrame
+        top_genes["cosine_similarity"] = cosine_similarities
+        
+        # Append the results for the current cell type
+        all_results.append(top_genes)
+
+    # Concatenate results from all cell types into a single DataFrame
+    final_results = pd.concat(all_results, ignore_index=True)
+
+    # Use seaborn's default palette if no custom palette is provided
+  # Use seaborn's default color palette
+
+    # Create a Swarm Plot for cosine similarity grouped by cell type
+    plt.figure(figsize=(6, 4))  # Set the figure size to a smaller size (6x4 inches)
+    sns.swarmplot(
+        x="cell_type", 
+        y="cosine_similarity", 
+        data=final_results, 
+        palette=custom_palette  # Use custom or default palette
+    )
+
+    # Add labels and customize the plot
+    plt.xlabel("Cell Type", fontsize=12)
+    plt.ylabel("Cosine Similarity", fontsize=12)
+    plt.xticks(fontsize=10)  # Adjust font size for x-axis labels
+    plt.tight_layout()  # Ensure the layout fits well
+
+    # Return the matplotlib.pyplot object for further customization or saving
+    return plt

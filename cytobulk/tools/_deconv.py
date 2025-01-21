@@ -113,7 +113,7 @@ def bulk_deconv(bulk_data,
                 trans_method="log",
                 save = True,
                 save_figure=True,
-                n_cell=100,
+                n_cell=2000,
                 **kwargs):
     """
     Deconvolute the cell type fraction from bulk expression data with single cell dataset as reference.
@@ -228,6 +228,7 @@ def st_deconv(st_adata,
             save = True,
             save_figure=True,
             n_cell=10,
+            max_cells=40,
             **kwargs):
     """
     Deconvolute the cell type fraction from spot expression data with single cell dataset as reference.
@@ -317,10 +318,11 @@ def st_deconv(st_adata,
                                         out_dir=out_dir,
                                         batch_effect=different_source,
                                         is_st=True)
-    threshold = 1 / (n_cell+10)
+    threshold = 1 / max_cells
     deconv_result[deconv_result < threshold] = 0
     row_sums = deconv_result.sum(axis=1)
     df_normalized = deconv_result.div(row_sums, axis=0)
     st_ori_adata.uns['deconv']=df_normalized
     df_normalized.to_csv(f"{out_dir}/output/{dataset_name}_prediction_frac_normalized.csv")
     st_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_st_adata.h5ad')
+    return df_normalized,st_ori_adata

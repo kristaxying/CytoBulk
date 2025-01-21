@@ -33,3 +33,20 @@ def st_mapping(st_adata,
                **kwargs)
 ```
 ::: cytobulk.tools._mapping.st_mapping
+
+
+
+----------
+```python
+def he_mapping(image_dir,
+               out_dir,
+               project,
+               lr_data = None,
+               sc_adata = None,
+               annotation_key="curated_celltype",
+               k_neighbor=30,
+               alpha=0.5,
+               mapping_sc=True,
+               **kwargs)
+```
+::: cytobulk.tools._mapping.he_mapping

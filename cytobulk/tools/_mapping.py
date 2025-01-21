@@ -6,6 +6,7 @@ from .. import get
 from .. import utils
 import time
 import ot
+from pkg_resources import resource_filename
 import sys
 import scanpy as sc
 from multiprocessing import Pool, cpu_count
@@ -26,9 +27,7 @@ def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict
     name = bulk_data.columns[i]
     sample_cor = np.dot(bulk_data[name].values.reshape(1,bulk_data.shape[0]),sc_data.values)
     cor_index = cell_list[np.argsort(sample_cor)]
-    print(name)
     for j, cellname in enumerate(cellname_list):
-      print(cellname)
       mask = np.isin(cor_index, meta_dict[cellname])
       sub_cell = cor_index[mask]
       sub_cell = sub_cell[:int(cell_num[j])]
@@ -39,7 +38,6 @@ def _bulk_mapping_parallel(i, cell_num, bulk_data, sc_data, cell_list, meta_dict
     print(f"sample {name} done.")
 
     return sample_ori.tolist(), sample.tolist(), mapped_cor, sc_mapping_dict
-
 
 def bulk_mapping(bulk_adata,
                 sc_adata,
@@ -54,7 +52,6 @@ def bulk_mapping(bulk_adata,
                 out_dir=".",
                 normalization=True,
                 filter_gene=True,
-                cut_off_value=0.6,
                 save=True):
     """
     Reconstruct bulk data using single-cell data and cell type fractions.
@@ -163,7 +160,8 @@ def bulk_mapping(bulk_adata,
         # compute person correlation and select sc according to person correlation.
         print(f"multiprocessing mode, cpu count is {cpu_num}")
         with Pool(int(cpu_num)) as p:
-            results = p.starmap(_bulk_mapping_parallel, [(i, cell_num.iloc[i,:], bulk_data, sc_data, cell_list, meta_dict, cellname_list, input_sc_data) for i in range(cell_num.shape[0])])
+            results = p.starmap(_bulk_mapping_parallel, [(i, cell_num.iloc[i,:], bulk_data, sc_data, cell_list, meta_dict, cellname_list, input_sc_data)
+             for i in range(cell_num.shape[0])])
             print(results)
         # postprocessing
         for i, (sample_ori_i,sample_i, mapped_cor_i, sc_mapping_dict_i) in enumerate(results):
@@ -173,19 +171,18 @@ def bulk_mapping(bulk_adata,
             for k in sc_mapping_dict_i.keys():
                 sc_mapping_dict[k].extend(sc_mapping_dict_i[k])
     else:
-        for i, sample_num in tqdm(cell_num.iterrows()):
+        for index_num, (i, sample_num) in enumerate(tqdm(cell_num.iterrows())):
             sample_cor = np.dot(bulk_data[i].values.reshape(1,bulk_data.shape[0]),sc_data.values)
             cor_index = cell_list[np.argsort(sample_cor)]
             for j, cellname in enumerate(cellname_list):
-                print(cellname)
                 mask = np.isin(cor_index, meta_dict[cellname])
                 sub_cell = cor_index[mask]
-                sub_cell = sub_cell.iloc[:int(sample_num[j])]
+                sub_cell = sub_cell[:int(sample_num[j])]
                 sc_mapping_dict[i].extend(sub_cell)
             print(f"sample {i} done.")
-            sample_ori = input_sc_data.loc[:,sc_mapping_dict[i]].sum(axis=1)
-            sample = sc_data.loc[:,sc_mapping_dict[i]].sum(axis=1)
-            mapped_cor_i = utils.pear(sample,bulk_data[i].values).item()
+            sample_ori[index_num,:] = input_sc_data.loc[:,sc_mapping_dict[i]].sum(axis=1)
+            sample[index_num,:] = sc_data.loc[:,sc_mapping_dict[i]].sum(axis=1)
+            mapped_cor_i = utils.pear(sample[index_num,:],bulk_data[i].values).item()
             mapped_cor.append(mapped_cor_i)
     print('initial mapping solution:',"min correlation", min(mapped_cor),"average correlation",np.mean(mapped_cor),"max correlation", max(mapped_cor))
     bulk_adata.obsm['cell_number']=pd.DataFrame(cell_matrix,index=cell_prop.index,columns=cell_prop.columns)
@@ -213,7 +210,8 @@ def bulk_mapping(bulk_adata,
         df.to_csv(f"{out_dir}/bulk_data_{project}_mapping.csv")
         bulk_adata.write_h5ad(f"{out_dir}/bulk_data_{project}_mapping.h5ad")
 
-    return bulk_adata,df
+    return df,bulk_adata
+
 
 def _run_st_mapping(st_adata,
                     sc_adata,
@@ -221,7 +219,6 @@ def _run_st_mapping(st_adata,
                     annotation_key='celltype_minor',
                     sc_downsample=False,
                     scRNA_max_transcripts_per_cell=1500,
-                    sampling_method="duplicates",
                     out_dir='.',
                     project='test',
                     mean_cell_numbers=8,
@@ -242,7 +239,7 @@ def _run_st_mapping(st_adata,
         n_cells_per_spot_data = get.meta(st_adata,position_key="obsm",columns="cell_num")
     else:
         n_cells_per_spot_data = estimate_cell_num(st_data, mean_cell_numbers)
-    n_cells_per_spot_data.to_csv(f"{out_dir}/output/n_cells_per_spot_data.csv")
+    #n_cells_per_spot_data.to_csv(f"{out_dir}/output/n_cells_per_spot_data.csv")
     cell_number_to_node_assignment = n_cells_per_spot_data.astype(int)
     intersect_genes = st_data.index.intersection(sc_data.index)
     
@@ -250,11 +247,11 @@ def _run_st_mapping(st_adata,
     scRNA_data_sampled = sc_data.loc[intersect_genes, :]
     st_data = st_data.loc[intersect_genes, :]
     fraction_spot_num = deconv_result.mul(cell_number_to_node_assignment.values,axis=0)
-    fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num.csv")
+    #fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num.csv")
     fraction_spot_num = fraction_spot_num.apply(modify_row, axis=1)
-    fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num_motified.csv")
+    #fraction_spot_num.to_csv(f"{out_dir}/output/fraction_spot_num_motified.csv")
     cell_type_numbers_int = fraction_spot_num.sum().to_frame()
-    cell_type_numbers_int.to_csv(f"{out_dir}/output/cell_type_numbers_int.csv")
+    #cell_type_numbers_int.to_csv(f"{out_dir}/output/cell_type_numbers_int.csv")
     cell_type_numbers_int.columns=[0]
 
     
@@ -283,7 +280,6 @@ def _run_st_mapping(st_adata,
     cell_ids_selected_list=[]
     #round_item=0
     for cells in cell_type_numbers_int.index.tolist():
-        print(f"assign cell type {cells}")
         scRNA_data_sampled_cell_type = scRNA_data_sampled.columns.tolist()
         cell_type_index = cell_type_data[cell_type_data.values == cells].index.tolist()
         cell_type_selected_index=np.intersect1d(scRNA_data_sampled_cell_type,cell_type_index).tolist()
@@ -316,7 +312,7 @@ def _run_st_mapping(st_adata,
             #total_cell_names = total_cell_names[not_assigned_cell_index]
             not_assigned_cell = not_assigned_cell[not_assigned_cell_index]
             not_assigned_num = len(not_assigned_pos_index)
-            print("assignment left: ", not_assigned_num)
+            #print("assignment left: ", not_assigned_num)
             total_cost += cost
             lap_expressions_tpm_st_log = lap_expressions_tpm_st_log.iloc[:, not_assigned_pos]
             if (len(not_assigned_cell)==0)&(len(not_assigned_pos)>0):
@@ -344,9 +340,9 @@ def _run_st_mapping(st_adata,
         new_adata.uns = st_adata.uns
         new_adata.write(f"{out_dir}/output/reconstructed_{project}_st.h5ad")
 
-    return reconstructed_sc
+    return reconstructed_sc,new_adata
 
-    
+  
 
 def st_mapping(st_adata,
                sc_adata,
@@ -414,22 +410,78 @@ def st_mapping(st_adata,
     return reconstructed_sc
 
 
-def he_mapping(sc_adata,
-               image_dir,
+def he_mapping(image_dir,
                out_dir,
                project,
-               lr_data,
+               lr_data = None,
+               sc_adata = None,
                annotation_key="curated_celltype",
                k_neighbor=30,
                alpha=0.5,
-               mapping_sc=False,
+               mapping_sc=True,
                **kwargs):
+
+    """
+    Run H&E-stained image cell type mapping with single-cell RNA-seq data.
+
+    This function predicts cell types from H&E-stained histology images and aligns them with single-cell RNA-seq (scRNA-seq) data using optimal transport. It computes spatial distributions and matches cell types between the image and single-cell data.
+
+    Parameters
+    ----------
+    image_dir : str
+        Path to the directory containing H&E-stained images.
+
+    out_dir : str
+        Directory where the output files will be saved.
+
+    project : str
+        Name of the project, used for naming output files.
+
+    lr_data : pandas.DataFrame, optional (default: None)
+        A DataFrame containing ligand-receptor pair data with columns 'ligand' and 'receptor'.
+
+    sc_adata : anndata.AnnData, optional (default: None)
+        An :class:`~anndata.AnnData` object containing single-cell RNA-seq data with gene expression profiles.
+
+    annotation_key : str, optional (default: "curated_celltype")
+        Key in `sc_adata.obs` for cell type annotations.
+
+    k_neighbor : int, optional (default: 30)
+        Number of neighbors to consider when constructing the graph for H&E image data.
+
+    alpha : float, optional (default: 0.5)
+        Trade-off parameter for the Fused Gromov-Wasserstein optimal transport, controlling the balance between graph structure and feature matching (value between 0 and 1).
+
+    mapping_sc : bool, optional (default: True)
+        Whether to perform mapping between H&E image cell data and single-cell RNA-seq data. If False, only H&E image cell type predictions are returned.
+
+    **kwargs : dict
+        Additional arguments (not used in this implementation).
+
+    Returns
+    -------
+    cell_coordinates : pandas.DataFrame
+        DataFrame containing cell coordinates and their predicted cell types from H&E-stained images.
+
+    df : pandas.DataFrame
+        DataFrame containing matching results between H&E image cells and single-cell data, including spatial coordinates, cell types, and matched single-cell IDs.
+
+    filtered_adata : anndata.AnnData
+        A filtered :class:`~anndata.AnnData` object containing only the single-cell data that matches with cells from H&E-stained images.
+    """
     start_t = time.perf_counter()
+    file_dir = resource_filename(__name__, 'model/pretrained_models/')
+    file_name = 'DeepCMorph_Datasets_Combined_41_classes_acc_8159.pth'
+
+    # The download URL for the file (replace with the actual URL)
+    download_url = "https://drive.google.com/file/d/1M5dNB5XtrboQcxuI59rPNdR29nLe6UFC/view?usp=sharing"
+
+    # Ensure the file exists; if not, download it
+    get.ensure_file_exists(file_dir, file_name, download_url)
     cell_coordinates = inference_cell_type_from_he_image(image_dir,
                                                          out_dir,
                                                          project)
     if mapping_sc:
-        lr_data = pd.read_csv(lr_data)
         print("preprocessing of single cell data")
         lr_genes = np.unique(np.concatenate((lr_data['ligand'].values, lr_data['receptor'].values)))
         sc.pp.filter_cells(sc_adata, min_genes=200)  # filter
@@ -487,7 +539,6 @@ def he_mapping(sc_adata,
         ot_plan = ot.gromov.fused_gromov_wasserstein(
         cost_matrix, graph1_adj, graph2_dist, p, q, alpha=alpha, loss_fun='square_loss'
         )
-        print(ot_plan)
         print(f'Time to finish mapping: {round(time.perf_counter() - start_t, 2)} seconds')
         print("=========================================================================================================================================")
         # Step 5: matching file
@@ -512,9 +563,10 @@ def he_mapping(sc_adata,
         #filtered_adata.obs = pd.DataFrame()
         filtered_adata.obs = filtered_df
         filtered_adata.var.index.name = "gene"
-        print(filtered_adata)
         filtered_adata.write_h5ad(f"{out_dir}/{project}_matching_adata.h5ad")
-        return df
+        return cell_coordinates,df,filtered_adata
+    else:
+        return cell_coordinates
 
     
     

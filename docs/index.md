@@ -4,14 +4,6 @@
 
 ![network_structure](./assets/figure1.png "CytoBulk workflow")
 
-The Python module CytoBulk is a self-contained machine learning framework. 
+A tool that integrates bulk RNA, single-cell RNA (scRNA), spatial transcriptome (ST), and H&E images to deconvolute the TIME from bulk or spot data using graph frequency domain modeling; and reconstructs the TIME to single-cell resolution using optimal transport methods.
 
 
-## How to install CytoBulk
-
-You can install CytoBulk from PyPI:
-```bash
-pip install CytoBulk
-```
-
-## How to use CytoBulk

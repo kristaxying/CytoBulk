@@ -53,3 +53,19 @@ def plot_reconstruction(adata,
                         spot_size=0.5):
 ```
 ::: cytobulk.plots._plot.plot_reconstruction
+
+----------
+```python
+
+df plot_gene_similarity(adata, 
+                        marker_df, 
+                        custom_palette="Spectral")
+```
+::: cytobulk.plots._plot.plot_gene_similarity
+
+
+----------
+```python
+def plot_he_cell_type(data,out_dir)
+```
+::: cytobulk.plots._plot.plot_he_cell_type

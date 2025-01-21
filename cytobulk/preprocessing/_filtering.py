@@ -48,8 +48,7 @@ def _filter_adata(
     Returns the filtered `adata`.
     
     """
-    print(min_counts_per_cell)
-    print(min_genes_per_cell)
+
     #check gene
     if not ignore_duplicated_genes:
         start_t = time.perf_counter()
