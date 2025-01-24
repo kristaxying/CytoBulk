@@ -611,7 +611,6 @@ def st_simulation(sc_adata,
                         sti_num=5
                     '''
                     change_fold = cell_prop[cells]/(1/len(all_cells_names))
-                    print(change_fold)
                     if change_fold>=1.5:
                         sti_num=round(n_sample_each_group*((1/change_fold)/st_data.shape[0]))
                         if sti_num<3:

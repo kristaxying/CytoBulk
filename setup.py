@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="CytoBulk",  
-    version="0.1.8",  
+    version="0.1.9",  
     author="Xueying WANG",  
     author_email="your_email@example.com",  
     description="Integrating transcriptional data to decipher the tumor microenvironment with the graph frequency domain model",  
@@ -11,7 +11,7 @@ setup(
     url="https://github.com/kristaxying/CytoBulk",  
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={
-        "cytobulk": ["*.R", "preprocessing/*.R"],  # 指定需要打包的 .R 文件
+        "cytobulk": ["preprocessing/*.R"],  # 指定需要打包的 .R 文件
     },
     classifiers=[
         "Programming Language :: Python :: 3",  
@@ -42,5 +42,7 @@ setup(
         "openslide-python",
         "openslide-bin",
         "scikit-image",
+        "igraph",
+        "leidenalg"
     ],
 )
