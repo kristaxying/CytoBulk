@@ -777,7 +777,7 @@
 <div class="input">
 
 <div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">os</span>
-<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;R_HOME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;C:\Program Files\R\R-4.4.1&#39;</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;R_HOME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;C:/Program Files/R/R-4.4.1&#39;</span>
 </code></pre></div>
 
 </div>
@@ -793,6 +793,7 @@
 <div class="input">
 
 <div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">cytobulk</span> <span class="k">as</span> <span class="nn">ct</span>
 <span class="kn">import</span> <span class="nn">scanpy</span> <span class="k">as</span> <span class="nn">sc</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -800,6 +801,18 @@
 <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
 </code></pre></div>
 
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<code>c:\Users\wangxueying\project\CytoBulk\code\CytoBulk
+</code>
+</pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="cell border-box-sizing text_cell rendered">
@@ -851,6 +864,27 @@
                                              <span class="n">n_cell</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
 </code></pre></div>
 
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="output_subarea output_text output_error">
+<pre>
+<span class="ansi-red-intense-fg ansi-bold">---------------------------------------------------------------------------</span>
+<span class="ansi-red-intense-fg ansi-bold">NameError</span>                                 Traceback (most recent call last)
+Cell <span class="ansi-green-intense-fg ansi-bold">In[1], line 1</span>
+<span class="ansi-green-intense-fg ansi-bold">----&gt; 1</span> deconv_result,deconv_adata <span style="color: rgb(98,98,98)">=</span> <span class="ansi-yellow-bg">ct</span><span style="color: rgb(98,98,98)">.</span>tl<span style="color: rgb(98,98,98)">.</span>st_deconv(st_adata <span style="color: rgb(98,98,98)">=</span> st_adata,
+<span class="ansi-green-fg">      2</span>                                              sc_adata <span style="color: rgb(98,98,98)">=</span> sc_adata,
+<span class="ansi-green-fg">      3</span>                                              annotation_key <span style="color: rgb(98,98,98)">=</span><span style="color: rgb(175,0,0)">"</span><span style="color: rgb(175,0,0)">subtype</span><span style="color: rgb(175,0,0)">"</span>,
+<span class="ansi-green-fg">      4</span>                                              out_dir<span style="color: rgb(98,98,98)">=</span><span style="color: rgb(175,0,0)">"</span><span style="color: rgb(175,0,0)">C:/Users/wangxueying/project/CytoBulk/case/MOB_layer</span><span style="color: rgb(175,0,0)">"</span>,
+<span class="ansi-green-fg">      5</span>                                              dataset_name<span style="color: rgb(98,98,98)">=</span><span style="color: rgb(175,0,0)">"</span><span style="color: rgb(175,0,0)">MOB_layer</span><span style="color: rgb(175,0,0)">"</span>,
+<span class="ansi-green-fg">      6</span>                                              different_source<span style="color: rgb(98,98,98)">=</span><span class="ansi-bold" style="color: rgb(0,135,0)">True</span>,
+<span class="ansi-green-fg">      7</span>                                              n_cell<span style="color: rgb(98,98,98)">=</span><span style="color: rgb(98,98,98)">15</span>)
+
+<span class="ansi-red-intense-fg ansi-bold">NameError</span>: name 'ct' is not defined</pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
