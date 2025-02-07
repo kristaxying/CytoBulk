@@ -33,10 +33,11 @@ os.environ['R_HOME'] = r_path
  To run **CytoBulk**, make sure all the following **prerequisites** are installed.
 
 
-**R 4.4.0 or higher and the following packages**
-     - Giotto (1.1.2) <https://giottosuite.readthedocs.io/en/master/gettingstarted.html>
-     - scran (1.32.0) <https://bioconductor.org/packages/release/bioc/html/scran.html>
-     - sva (3.52.0) <https://www.bioconductor.org/packages/release/bioc/html/sva.html>
+**R 4.4.0 or higher and the following packages** 
+
+- Giotto (1.1.2) <https://giottosuite.readthedocs.io/en/master/gettingstarted.html>
+- scran (1.32.0) <https://bioconductor.org/packages/release/bioc/html/scran.html>
+- sva (3.52.0) <https://www.bioconductor.org/packages/release/bioc/html/sva.html>
 
 
 
