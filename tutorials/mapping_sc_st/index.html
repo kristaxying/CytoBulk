@@ -868,6 +868,7 @@
 <div class="input">
 
 <div class="highlight"><pre><span></span><code><span class="n">sc_adata</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">read_h5ad</span><span class="p">(</span><span class="s2">&quot;C:/Users/wangxueying/project/CytoBulk/case/10x/input/sc_adata.h5ad&quot;</span><span class="p">)</span>
+<span class="n">sc_ori_adata</span> <span class="o">=</span> <span class="n">sc_adata</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 <span class="n">st_adata</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">read_h5ad</span><span class="p">(</span><span class="s2">&quot;C:/Users/wangxueying/project/CytoBulk/case/10x/input/st_adata_sub_3.h5ad&quot;</span><span class="p">)</span>
 </code></pre></div>
 
@@ -1292,7 +1293,7 @@ Name: count, dtype: int64</code>
 <div class="input">
 
 <div class="highlight"><pre><span></span><code><span class="n">reconstructed_cell</span><span class="p">,</span> <span class="n">reconstructed_adata</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">tl</span><span class="o">.</span><span class="n">st_mapping</span><span class="p">(</span><span class="n">st_adata</span> <span class="o">=</span> <span class="n">deconv_adata</span><span class="p">,</span>
-                                            <span class="n">sc_adata</span> <span class="o">=</span> <span class="n">sc_adata</span><span class="p">,</span>
+                                            <span class="n">sc_adata</span> <span class="o">=</span> <span class="n">sc_ori_adata</span><span class="p">,</span>
                                             <span class="n">out_dir</span><span class="o">=</span><span class="s2">&quot;C:/Users/wangxueying/project/CytoBulk/case/10x/sub3/demo&quot;</span><span class="p">,</span>
                                             <span class="n">project</span><span class="o">=</span><span class="s2">&quot;BRCA_10X&quot;</span><span class="p">,</span>
                                             <span class="n">annotation_key</span><span class="o">=</span><span class="s1">&#39;cell_type&#39;</span><span class="p">)</span>

@@ -1229,7 +1229,7 @@ False for single cell and bulk data from the different samples, which means exec
     <span class="n">df_normalized</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">out_dir</span><span class="si">}</span><span class="s2">/output/</span><span class="si">{</span><span class="n">dataset_name</span><span class="si">}</span><span class="s2">_prediction_frac_normalized.csv&quot;</span><span class="p">)</span>
     <span class="n">bulk_ori_adata</span><span class="o">.</span><span class="n">write_h5ad</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">out_dir</span><span class="si">}</span><span class="s1">/output/</span><span class="si">{</span><span class="n">dataset_name</span><span class="si">}</span><span class="s1">_bulk_adata.h5ad&#39;</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">deconv_result</span><span class="p">,</span><span class="n">bulk_adata</span>
+    <span class="k">return</span> <span class="n">deconv_result</span><span class="p">,</span><span class="n">bulk_ori_adata</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
