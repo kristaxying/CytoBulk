@@ -9,8 +9,8 @@ To install and use CytoBulk, please visit https://kristaxying.github.io/CytoBulk
 # System requirements
 
 We have tested the package on the following systems:
-- Linux: Ubuntu 20
-- Windows: Windows 11 Enterprise
+- Linux: Ubuntu 20 (GPU 3080)
+- Windows: Windows 11 Enterprise (CPU)
 
 # Installation Guide
 
