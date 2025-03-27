@@ -6,6 +6,12 @@ CytoBulk aims to Integrate transcriptional and image data to depict the tumor mi
 
 To install and use CytoBulk, please visit https://kristaxying.github.io/CytoBulk/
 
+# System requirements
+
+We have tested the package on the following systems:
+- Linux: Ubuntu 20
+- Windows: Windows 11 Enterprise
+
 # Installation Guide
 
 Follow the steps below to install and set up **CytoBulk**.
