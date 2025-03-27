@@ -211,7 +211,7 @@ def bulk_deconv(bulk_data,
     df_normalized.to_csv(f"{out_dir}/output/{dataset_name}_prediction_frac_normalized.csv")
     bulk_ori_adata.write_h5ad(f'{out_dir}/output/{dataset_name}_bulk_adata.h5ad')
 
-    return deconv_result,bulk_adata
+    return deconv_result,bulk_ori_adata
 
 
 def st_deconv(st_adata,

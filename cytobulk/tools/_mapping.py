@@ -162,7 +162,6 @@ def bulk_mapping(bulk_adata,
         with Pool(int(cpu_num)) as p:
             results = p.starmap(_bulk_mapping_parallel, [(i, cell_num.iloc[i,:], bulk_data, sc_data, cell_list, meta_dict, cellname_list, input_sc_data)
              for i in range(cell_num.shape[0])])
-            print(results)
         # postprocessing
         for i, (sample_ori_i,sample_i, mapped_cor_i, sc_mapping_dict_i) in enumerate(results):
             sample_ori[i]= np.array(sample_ori_i)

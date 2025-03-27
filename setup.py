@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="CytoBulk",  
-    version="0.1.9",  
+    version="0.1.10",  
     author="Xueying WANG",  
     author_email="your_email@example.com",  
     description="Integrating transcriptional data to decipher the tumor microenvironment with the graph frequency domain model",  
