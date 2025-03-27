@@ -55,7 +55,7 @@ os.environ['R_HOME'] = r_path
 
 
 # Run demo
-please visit Examples section at https://kristaxying.github.io/CytoBulk/.
+Please visit Examples section at https://kristaxying.github.io/CytoBulk/.
 
 
 
