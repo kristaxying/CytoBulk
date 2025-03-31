@@ -1133,11 +1133,26 @@ Crop region: Start=(8880, 10080), Size=(2240, 2240)
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>
 <code>File already exists: c:\Users\wangxueying\anaconda\envs\cytobulk\lib\site-packages\cytobulk\tools\model\pretrained_models\DeepCMorph_Datasets_Combined_41_classes_acc_8159.pth
-print(f'{out_dir}/combinded_cent.txt already exists, skipping prediction.')
+Model loaded, unexpected keys: []
+Generating segmentation and classification maps for sample images
+All visual results saved
+Combine results
+Skipping invalid file name: combinded_cent.txt
+Data successfully written to C:\Users\wangxueying\project\CytoBulk\case\he_image\svs\out\demo\combinded_cent.txt
+Save file done
 </code>
 </pre>
 </div>
 </div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>If you encounter the following error while running the ct.tl.he_mapping function:</strong>
+_pickle.UnpicklingError: invalid load key, '&lt;'.</p>
+<p><strong>This error occurs because the pretrained model file was not fully downloaded, resulting in a corrupted or incomplete file. To resolve this issue, follow the steps below to manually download the model file and place it in the correct location.</strong> <a href="https://data.vision.ee.ethz.ch/ihnatova/public/DeepCMorph/DeepCMorph_Pan_Cancer_Regularized_32_classes_acc_8200.pth">[Download model]</a></p>
 </div>
 </div>
 </div>
