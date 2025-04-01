@@ -28,6 +28,11 @@ conda activate cytobulk
 pip install cytobulk
 ```
 This approach is suitable for users who want all dependencies managed within the same Conda environment. However, it might **not work reliably on Windows** due to potential issues with R configuration in Conda.
+**If you have installed cytobulk package, please run following code to update the latest version**
+```
+pip install cytobulk==0.1.20
+
+```
 ### Option 2: Set Only Python and Specify R Path Separately
 
 ```
@@ -41,6 +46,11 @@ Then, before running the main program, you need to specify the path to your loca
 import os
 # Set the R installation path (adjust the path based on your R installation)
 os.environ['R_HOME'] = r_path
+```
+**If you have installed cytobulk package, please run following code to update the latest version**
+```
+pip install cytobulk==0.1.20
+
 ```
 ## Install required R packages
 
@@ -62,3 +72,6 @@ Please visit Examples section at https://kristaxying.github.io/CytoBulk/.
 ### Maintainer
 WANG Xueying xywang85-c@my.cityu.edu.hk
 
+
+### The Latest Version
+0.1.20  April 1, 2025

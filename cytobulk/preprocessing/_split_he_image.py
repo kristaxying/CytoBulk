@@ -91,7 +91,13 @@ def process_svs_image(svs_path, output_dir, crop_size=224, magnification=1,
                 cropped = region_enlarged.crop((x, y, x + crop_size, y + crop_size))
 
                 # Generate the filename for the tile
-                filename = f"{i}_{j}.jpg"
+                folder_name = f"{i}_{j}/"
+                full_path = os.path.join(output_dir, folder_name)
+
+
+                os.makedirs(full_path, exist_ok=True)
+
+                filename = f"0.jpg"
 
                 # Save the tile to the output directory
-                cropped.save(os.path.join(output_dir, filename))
+                cropped.save(os.path.join(full_path,filename))

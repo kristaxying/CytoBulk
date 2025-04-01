@@ -473,7 +473,7 @@ def he_mapping(image_dir,
     file_name = 'DeepCMorph_Datasets_Combined_41_classes_acc_8159.pth'
 
     # The download URL for the file (replace with the actual URL)
-    download_url = "https://drive.google.com/file/d/1M5dNB5XtrboQcxuI59rPNdR29nLe6UFC/view?usp=sharing"
+    download_url = "https://data.vision.ee.ethz.ch/ihnatova/public/DeepCMorph/DeepCMorph_Pan_Cancer_Regularized_32_classes_acc_8200.pth"
 
     # Ensure the file exists; if not, download it
     get.ensure_file_exists(file_dir, file_name, download_url)

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="CytoBulk",  
-    version="0.1.10",  
+    version="0.1.20",  
     author="Xueying WANG",  
     author_email="your_email@example.com",  
     description="Integrating transcriptional data to decipher the tumor microenvironment with the graph frequency domain model",  
@@ -11,7 +11,7 @@ setup(
     url="https://github.com/kristaxying/CytoBulk",  
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={
-        "cytobulk": ["preprocessing/*.R"],  # 指定需要打包的 .R 文件
+        "cytobulk": ["preprocessing/*.R"],  
     },
     classifiers=[
         "Programming Language :: Python :: 3",  
@@ -35,7 +35,7 @@ setup(
         "scikit-learn",
         "scipy",
         "seaborn",
-        "torch>2.1.0",
+        "torch>2.1.0,<2.6.0",
         "torchvision",
         "tqdm",
         "requests",
