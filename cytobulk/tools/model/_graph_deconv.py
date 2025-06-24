@@ -32,7 +32,7 @@ class Const:
     EPOCH_NUM_BULK = 12
     EPOCH_NUM_ST = 10
     SEED = 20230602
-    CHEB_MODE = 0
+    CHEB_MODE = 1
     MAX_RETRY=1
 
 
@@ -105,11 +105,11 @@ class GraphConv(nn.Module):
         lam = torch.from_numpy(lam)
         #print(lam)
         lam= torch.diag(lam).to(self.device)
+        u = u.real
         u = torch.from_numpy(u).to(self.device)
         #u = u.to(self.device)
         lam = 2*((lam - torch.min(lam).to(self.device)) / (torch.max(lam).to(self.device) - torch.min(lam).to(self.device))) - torch.eye(lam.size(0)).to(self.device)
         mul_L = self.cheb_polynomial(lam).unsqueeze(1)
-
         if mode == 0:
             result = torch.matmul(inputs, mul_L)
         elif mode == 1:
