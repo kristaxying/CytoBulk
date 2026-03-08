@@ -1,0 +1,67 @@
+name: cytobulk
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - python=3.10.0
+  - pip
+  - setuptools=68.2.2
+  - wheel
+  
+  - numpy=1.25.0
+  - pandas=2.1.1
+  - scipy=1.12.0
+  - scikit-learn=1.3.1
+  - anndata=0.9.2
+  - scanpy=1.9.6
+
+  - requests=2.31.0
+  - pot=0.9.6.post1
+  - python-igraph=0.10.8
+  - leidenalg=0.10.1
+
+  - openslide
+  - openslide-python=1.4.2
+  - imageio
+  - scikit-image
+
+  - r-base=4.2.3
+  - r-remotes
+  - r-recommended
+  - r-rmarkdown
+  - r-htmlwidgets
+  - r-dt
+  - r-plotly
+  - r-mass
+  - r-mgcv
+  - r-lme4
+  - r-doby
+  - r-pbkrtest
+  - r-car
+  - r-ggforce
+  - r-ggraph
+  - r-ggdendro
+  - r-fitdistrplus
+  - r-magick
+  - r-clusterr
+  - r-dbscan
+  - r-deldir
+  - r-reticulate
+  - r-rfast
+  - r-rtsne
+  - r-uwot
+  
+  - bioconductor-scran
+  - bioconductor-qvalue
+  - bioconductor-complexheatmap
+  - bioconductor-lfa
+
+  - pip:
+      - --index-url https://pypi.org/simple
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - torch==2.2.1+cu121
+      - torchvision==0.17.1+cu121
+      - ortools==9.3.10497
+      - rpy2==3.5.14

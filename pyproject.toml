@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68.2.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cytobulk"
+version = "0.1.0"
+description = "CytoBulk: A comprehensive toolkit for spatial transcriptomics analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/kristaxying/CytoBulk"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cytobulk*"]
+
+[tool.setuptools.package-data]
+cytobulk = [
+    "preprocessing/*.R",
+    "tools/model/pretrained_models/*.pth"
+]

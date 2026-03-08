@@ -1,0 +1,5 @@
+include README.md
+include environment.yml
+recursive-include cytobulk *.py
+recursive-include cytobulk/preprocessing *.R
+recursive-include cytobulk/tools/model/pretrained_models *.pth
