@@ -56,6 +56,40 @@ docker pull kristawang/cytobulk:1.0.0
 docker images | grep cytobulk
 ```
 
+## 1.3 Troubleshooting
+
+### Issue: rpy2 installation fails with "command 'gcc' failed"
+
+If you encounter an error during `conda env create -f environment.yml` that looks like:
+
+```
+ERROR: Failed to build 'rpy2' when getting requirements to build wheel
+...
+FileNotFoundError: [Errno 2] No such file or directory: 'gcc'
+...
+distutils.compilers.C.errors.CompileError: command 'gcc' failed: No such file or directory
+```
+
+**Cause:** This error occurs because the system lacks required C compilers (gcc) needed to build rpy2 from source.
+
+**Solution:** Install the compilers using conda:
+
+```bash
+conda install -c conda-forge compilers make pkg-config
+```
+
+After installation, verify that gcc is available:
+
+```bash
+which gcc && gcc --version
+```
+
+You should see the path to gcc and its version information. Then retry the environment creation:
+
+```bash
+conda env create -f environment.yml
+```
+
 ---
 
 ## 2) General I/O conventions
