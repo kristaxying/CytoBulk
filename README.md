@@ -33,6 +33,8 @@ conda activate cytobulk
 pip install -e .
 ```
 
+Most common dependencies are included in `environment.yml`, but installing Giotto may still require manually installing additional packages.
+
 Then install Giotto in R (required for marker detection with Giotto):
 
 ```r
