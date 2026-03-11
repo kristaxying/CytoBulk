@@ -432,7 +432,8 @@ def compute_weighted_distance_matrix(
     num_cells = len(cell_type)
 
     # Compute the combined ligand-receptor affinity matrix
-    lr_affinity_sum = (abs(lr_affinity_matrix_part1) + abs(lr_affinity_matrix_part2))/2
+    print("without_abs")
+    lr_affinity_sum = (lr_affinity_matrix_part1 + lr_affinity_matrix_part2)/2
 
 
     # Initialize alpha matrix

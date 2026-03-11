@@ -525,7 +525,7 @@ def he_mapping(image_dir,
     file_name = 'DeepCMorph_Datasets_Combined_41_classes_acc_8159.pth'
 
     # The download URL for the file (replace with the actual URL)
-    download_url = "https://data.vision.ee.ethz.ch/ihnatova/public/DeepCMorph/DeepCMorph_Datasets_Combined_41_classes_acc_8159.pth"
+    download_url = "https://data.vision.ee.ethz.ch/ihnatova/public/DeepCMorph/DeepCMorph_Pan_Cancer_Regularized_32_classes_acc_8200.pth"
 
     # Ensure the file exists; if not, download it
     get.ensure_file_exists(file_dir, file_name, download_url)
@@ -808,9 +808,13 @@ def _process_multiple_batches(cell_coordinates, sc_adata,sc_adata_expr,lr_data, 
 
         p = np.nan_to_num(p, nan=1.0 / len(p), posinf=1.0 / len(p), neginf=0)
         q = np.nan_to_num(q, nan=1.0 / len(q), posinf=1.0 / len(q), neginf=0)
+        if anchor_expression is not None and shared_genes is not None:
+            cost_matrix_perturbed = cost_matrix
+        else:
+            cost_matrix_perturbed = cost_matrix.astype(float) + np.random.normal(0, 0.1, cost_matrix.shape)
 
         ot_plan = ot.gromov.fused_gromov_wasserstein(
-            cost_matrix, graph1_adj, graph2_dist, p, q, alpha=alpha, loss_fun='square_loss'
+            cost_matrix_perturbed, graph1_adj, graph2_dist, p, q, alpha=alpha, loss_fun='square_loss'
         )
 
         # Build batch matching results
